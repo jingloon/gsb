@@ -1,2 +1,4 @@
 # gsb
-guard scoreboard
+guard scoreboard for pool players
+
+first time coding using chatgpt!
