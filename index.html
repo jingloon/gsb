@@ -401,7 +401,7 @@
                 updateOrderAfterWin(player);
             } else if (action === 'foul') {
                 scores[player] -= points;
-                const next = order[(idx + 1) % order.length];
+                const next = order[(idx - 1) % order.length];
                 scores[next] += points;
             } else if (action === 'bc') {
                 let others = order.filter(p => p !== player);
