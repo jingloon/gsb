@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>GUARD BOARD</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      margin: 0;
+      padding: 5.5rem 0 3.5rem; /* top + bottom padding for fixed elements */
+      text-align: center;
+    }
+    footer {
+  text-align: center;
+  font-size: 0.9rem;
+  color: #777;
+  padding: 1rem 0;
+  border-top: 1px solid #ddd;
+  margin-top: 1rem;
+}
+    .top-menu {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3.5rem;
+      background: #0d1321;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 1rem;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      z-index: 1000;
+      font-weight: bold;
+      font-size: 1.4rem;
+      user-select: none;
+    }
+
+    .branding {
+      user-select: none;
+      color: white;
+    }
+
+    .right-buttons {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .right-buttons button {
+      padding: 0.5rem 1rem;
+      font-size: 0.9rem;
+      border: none;
+      border-radius: 5px;
+      background-color: #8c9399;
+      color: white;
+      cursor: pointer;
+    }
+
+    .right-buttons .reset {
+      background-color: #da3226;
+    }
+
+    /* Scoring fields fixed below menu */
+    .scoring-rules {
+      position: absolute;
+      top: 3.5rem;
+      left: 0;
+      right: 0;
+      background: #d8d8d8;
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      padding: 0.7rem 1rem;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      z-index: 999;
+      user-select: none;
+      font-weight: bold;
+      font-size: 1rem;
+    }
+
+    .scoring-rules div {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .scoring-rules input {
+      width: 50px;
+      text-align: center;
+      padding: 0.2rem 0.3rem;
+      font-size: 1rem;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
+
+    /* Round Order fixed at bottom */
+    #roundOrder {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #7fc6a4;
+      font-size: 1rem;
+      font-weight: bold;
+      padding: 0.5rem 1rem;
+      box-shadow: 0 -2px 5px rgba(0,0,0,0.2);
+      user-select: none;
+      z-index: 1000;
+    }
+
+    .scoreboard {
+      margin-top: 3.5rem; /* space for fixed menu + scoring fields */
+      margin-bottom: 3.5rem; /* space for round order */
+      display: grid;
+      gap: 1rem;
+      width: 100%;
+      max-width: 1200px;
+      margin-left: auto;
+      margin-right: auto;
+      padding: 0 1rem;
+      box-sizing: border-box;
+    }
+
+    /* 3 players: 3 columns x 1 row */
+    .scoreboard.three-players {
+      grid-template-columns: repeat(2, 1fr);
+      grid-auto-rows: minmax(150px, auto);
+    }
+
+    /* 4 players: 2 columns x 2 rows */
+    .scoreboard.four-players {
+      grid-template-columns: repeat(2, 1fr);
+      grid-template-rows: repeat(2, minmax(150px, auto));
+    }
+
+    .player-card {
+      background: white;
+      padding: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+    }
+
+    .player-card.positive {
+      border: 2px solid rgb(22, 168, 22);
+    }
+
+    .player-card.negative {
+      border: 2px solid rgb(133, 4, 4);
+    }
+
+    .score {
+      font-size: 2.2rem;
+      margin: 1rem 0;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    button {
+      margin: 0.2rem;
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .win {
+      background-color: #4CAF50;
+      color: white;
+    }
+
+    .foul {
+      background-color: #da3226;
+      color: white;
+    }
+
+    .bc {
+      background: linear-gradient(45deg, #FFD700, #FFC300, #FFB700);
+      color: white;
+      border: 1px solid #b38600;
+      box-shadow: 0 0 8px #FFD700, inset 0 1px 1px rgba(255, 255, 255, 0.6);
+    }
+
+    .bc:disabled {
+      background: #555555; 
+      color: #666;
+      border: none;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .name-label {
+      font-size: 1.2rem;
+      cursor: pointer;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      user-select: none;
+      min-width: 100px;
+      text-align: center;
+    }
+
+    .name-input {
+      font-size: 1.2rem;
+      padding: 0.2rem 0.5rem;
+      width: 100%;
+      box-sizing: border-box;
+      text-align: center;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
+  </style>
+</head>
+<body>
+  <div class="top-menu">
+    <div class="branding">Guard.</div>
+    <div class="right-buttons">
+      <button id="togglePlayersBtn">3 Players</button>
+      <button class="reset" onclick="confirmReset()">Reset Game</button>
+    </div>
+  </div>
+
+  <div class="scoring-rules">
+    <div>Foul: <input type="number" id="foulPoints" value="1" /></div>
+    <div>Win: <input type="number" id="winPoints" value="3" /></div>
+    <div>BC: <input type="number" id="bcPoints" value="5" /></div>
+  </div>
+
+  <div class="scoreboard three-players" id="scoreboard">
+    <!-- Player cards inserted here -->
+  </div>
+
+  <div id="roundOrder">Round Order: Player 1 → Player 2 → Player 3</div>
+
+  <script>
+    let scores = {};
+    let order = [1, 2, 3];
+    let isFourPlayers = false;
+
+    function createPlayerCard(player) {
+      const card = document.createElement('div');
+      card.classList.add('player-card');
+      card.id = `playerCard${player}`;
+
+      // Name label with click-to-edit functionality
+      card.innerHTML = `
+        <div class="name-label" id="nameLabel${player}">Player ${player}</div>
+        <input class="name-input" id="nameInput${player}" style="display:none" />
+        <div class="score" id="score${player}">0</div>
+        <button class="win" onclick="changeScore(${player}, 'win')">Win</button> <br />
+        <button class="foul" onclick="changeScore(${player}, 'foul')">Foul!</button> <br />
+        <button class="bc" onclick="changeScore(${player}, 'bc')">BC</button>
+      `;
+
+      document.getElementById("scoreboard").appendChild(card);
+
+      scores[player] = 0;
+
+      // Name editing logic
+      const nameLabel = document.getElementById(`nameLabel${player}`);
+      const nameInput = document.getElementById(`nameInput${player}`);
+
+      nameLabel.addEventListener('click', () => {
+        nameLabel.style.display = 'none';
+        nameInput.style.display = 'block';
+        nameInput.value = nameLabel.textContent;
+        nameInput.focus();
+        nameInput.select();
+      });
+
+      nameInput.addEventListener('blur', () => {
+        let val = nameInput.value.trim();
+        if (val === '') val = `Player ${player}`;
+        nameLabel.textContent = val;
+        nameLabel.style.display = 'block';
+        nameInput.style.display = 'none';
+        updateRoundOrder();
+      });
+
+      nameInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          nameInput.blur();
+        } else if (e.key === 'Escape') {
+          nameInput.value = nameLabel.textContent;
+          nameInput.blur();
+        }
+      });
+
+      addScoreClickListener(player);
+    }
+
+    function removePlayerCard(player) {
+      const card = document.getElementById(`playerCard${player}`);
+      if (card) card.remove();
+      delete scores[player];
+    }
+
+    function updateRoundOrder() {
+      const names = order.map(i => {
+        const label = document.getElementById(`nameLabel${i}`);
+        return label ? label.textContent : `Player ${i}`;
+      });
+      document.getElementById("roundOrder").textContent = `Round Order: ${names.join(" → ")}`;
+    }
+
+    function getPointsFor(action) {
+      if (action === 'win') return parseInt(document.getElementById('winPoints').value) || 0;
+      if (action === 'foul') return parseInt(document.getElementById('foulPoints').value) || 0;
+      if (action === 'bc') return parseInt(document.getElementById('bcPoints').value) || 0;
+      return 0;
+    }
+
+    function changeScore(player, action) {
+      const points = getPointsFor(action);
+      const idx = order.indexOf(player);
+
+      if (action === 'win') {
+        scores[player] += points;
+        const prev = order[(idx - 1 + order.length) % order.length];
+        scores[prev] -= points;
+        updateOrderAfterWin(player);
+      } else if (action === 'foul') {
+        scores[player] -= points;
+        const next = order[(idx + 1) % order.length];
+        scores[next] += points;
+      } else if (action === 'bc') {
+        let others = order.filter(p => p !== player);
+        let totalLoss = 0;
+        for (let p of others) {
+          scores[p] -= points;
+          totalLoss += points;
+        }
+        scores[player] += totalLoss;
+      }
+
+      updateAllScores();
+      updateBCButtons();
+    }
+
+    function updateAllScores() {
+      for (let i in scores) {
+        const scoreElem = document.getElementById(`score${i}`);
+        if (scoreElem) scoreElem.textContent = scores[i];
+
+        const card = document.getElementById(`playerCard${i}`);
+        if (card) {
+          card.classList.remove('positive', 'negative');
+          if (scores[i] > 0) card.classList.add('positive');
+          else if (scores[i] < 0) card.classList.add('negative');
+        }
+      }
+      updateRoundOrder();
+    }
+
+    function updateOrderAfterWin(winner) {
+      const idx = order.indexOf(winner);
+      if (!isFourPlayers) {
+        // 3-player logic
+        if (idx === 0) order = [order[0], order[2], order[1]];
+        else if (idx === 1) order = [order[1], order[0], order[2]];
+        else order = [order[2], order[1], order[0]];
+      } else {
+        // 4-player logic
+        if (idx === 0) order = [order[0], order[3], order[1], order[2]];
+        else if (idx === 1) order = [order[1], order[0], order[2], order[3]];
+        else if (idx === 2) order = [order[2], order[1], order[3], order[0]];
+        else order = [order[3], order[2], order[0], order[1]];
+      }
+    }
+
+    function updateBCButtons() {
+      for (let i in scores) {
+        const card = document.getElementById(`playerCard${i}`);
+        if (!card) continue;
+        const bcBtn = card.querySelector('.bc');
+        if (!bcBtn) continue;
+        bcBtn.disabled = (parseInt(i) !== order[0]);
+      }
+    }
+
+    function confirmReset() {
+      if (confirm("Are you sure to reset the scores?")) {
+        resetScores();
+      }
+    }
+
+    function togglePlayersMode() {
+      if (!confirm("Change mode? This will reset the scores.")) return;
+
+      resetScores();
+
+      if (isFourPlayers) {
+        removePlayerCard(4);
+        order = [1, 2, 3];
+        document.getElementById('togglePlayersBtn').textContent = '3 Players';
+        isFourPlayers = false;
+        document.getElementById('scoreboard').classList.remove('four-players');
+        document.getElementById('scoreboard').classList.add('three-players');
+      } else {
+        createPlayerCard(4);
+        order = [1, 2, 3, 4];
+        document.getElementById('togglePlayersBtn').textContent = '4 Players';
+        isFourPlayers = true;
+        document.getElementById('scoreboard').classList.remove('three-players');
+        document.getElementById('scoreboard').classList.add('four-players');
+      }
+
+      updateAllScores();
+      updateBCButtons();
+    }
+
+    function addScoreClickListener(player) {
+      const scoreElem = document.getElementById(`score${player}`);
+      if (!scoreElem) return;
+      scoreElem.addEventListener('click', () => {
+        let newScore = prompt(`Enter new score for ${document.getElementById(`nameLabel${player}`).textContent}:`, scores[player]);
+        if (newScore === null) return;
+        newScore = newScore.trim();
+        if (/^-?\d+$/.test(newScore)) {
+          scores[player] = parseInt(newScore);
+          updateAllScores();
+          updateBCButtons();
+        } else {
+          alert("Please enter a valid integer number.");
+        }
+      });
+    }
+
+    function resetScores() {
+      for (let i in scores) scores[i] = 0;
+      updateAllScores();
+    }
+
+    function init() {
+      [1, 2, 3].forEach(createPlayerCard);
+      document.getElementById('togglePlayersBtn').addEventListener('click', togglePlayersMode);
+      updateRoundOrder();
+      updateBCButtons();
+    }
+
+    init();
+  </script>
+<footer>© 2025 Guard Scoreboard <br/> <i>for the Degens. Made with Kopi Peng ☕. </i></footer>
+</body>
+
+</html>
