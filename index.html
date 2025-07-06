@@ -54,7 +54,7 @@
 
         .right-buttons button {
             padding: 0.5rem 1rem;
-            font-size: 0.9rem;
+            font-size: 0.7rem;
             border: none;
             border-radius: 5px;
             background-color: #8c9399;
@@ -444,9 +444,9 @@
     <div class="top-menu">
         <div id="branding" class="branding">Guard.</div>
         <div class="right-buttons">
-            <button id="togglePlayersBtn">3 Players</button>
+            <button id="togglePlayersBtn">3P</button>
             <button id="undoBtn">Undo</button>
-            <button class="reset" onclick="confirmReset()">Reset Game</button>
+            <button class="reset" onclick="confirmReset()">Reset</button>
         </div>
     </div>
 
@@ -461,7 +461,7 @@
     </div>
 
     <div id="lastUpdate"></div>
-    <div id="roundOrder">Round Order: Player 1 → Player 2 → Player 3</div>
+    <div id="roundOrder">Round Order: P1 → P2 → P3</div>
 
     <div id="gameLogModal" class="modal">
         <div class="modal-content">
@@ -489,7 +489,7 @@
 
             // Name label with click-to-edit functionality
             card.innerHTML = `
-        <div class="name-label" id="nameLabel${player}">Player ${player}</div>
+        <div class="name-label" id="nameLabel${player}">P${player}</div>
         <input class="name-input" id="nameInput${player}" style="display:none" />
         <div class="score" id="score${player}">0</div>
         <div class="action-buttons">
@@ -521,7 +521,7 @@
 
             nameInput.addEventListener('blur', () => {
                 let val = nameInput.value.trim();
-                if (val === '') val = `Player ${player}`;
+                if (val === '') val = `P${player}`;
                 nameLabel.textContent = val;
                 nameLabel.style.display = 'block';
                 nameInput.style.display = 'none';
@@ -745,14 +745,14 @@
                     removePlayerCard(4);
                     order = [1, 2, 3];
                     isFourPlayers = false;
-                    document.getElementById('togglePlayersBtn').textContent = '3 Players';
+                    document.getElementById('togglePlayersBtn').textContent = '3P';
                     document.getElementById('scoreboard').classList.remove('four-players');
                     document.getElementById('scoreboard').classList.add('three-players');
                 } else {
                     createPlayerCard(4);
                     order = [1, 2, 3, 4];
                     isFourPlayers = true;
-                    document.getElementById('togglePlayersBtn').textContent = '4 Players';
+                    document.getElementById('togglePlayersBtn').textContent = '4P';
                     document.getElementById('scoreboard').classList.remove('three-players');
                     document.getElementById('scoreboard').classList.add('four-players');
                 }
