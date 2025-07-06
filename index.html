@@ -10,7 +10,7 @@
             font-family: Arial, sans-serif;
             background: #f5f5f5;
             margin: 0;
-            padding: 5.5rem 0 3.5rem;
+            padding: 5.5rem 0 5.5rem;
             /* top + bottom padding for fixed elements */
             text-align: center;
         }
@@ -66,6 +66,17 @@
             background-color: #da3226;
         }
 
+        .right-buttons #undoBtn {
+            background-color: #4a0071;
+            /* Dark Purple */
+        }
+
+        .right-buttons #undoBtn:disabled {
+            background-color: #8c9399;
+            /* Default grey */
+            cursor: not-allowed;
+        }
+
         /* Scoring fields fixed below menu */
         .scoring-rules {
             position: absolute;
@@ -112,7 +123,54 @@
             box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.2);
             user-select: none;
             z-index: 1000;
+            overflow: hidden;
         }
+
+        #lastUpdate {
+            position: fixed;
+            bottom: 2.2rem;
+            /* Adjust based on roundOrder's height */
+            left: 0;
+            right: 0;
+            background: #d8d8d8;
+            /* Match scoring-rules background */
+            color: black;
+            /* Font color back to black */
+            font-size: 1rem;
+            padding: 0.4rem 1rem;
+            box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
+            user-select: none;
+            z-index: 1000;
+            text-align: center;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .flash-sweep::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to right,
+                    transparent 0%,
+                    rgba(255, 255, 255, 0.6) 50%,
+                    transparent 100%);
+            transform: translateX(-100%);
+            animation: lens-flare 0.75s ease-out;
+        }
+
+        @keyframes lens-flare {
+            from {
+                transform: translateX(-100%);
+            }
+
+            to {
+                transform: translateX(100%);
+            }
+        }
+
 
         .scoreboard {
             margin-top: 3.5rem;
@@ -165,7 +223,8 @@
         .player-card .action-buttons {
             display: flex;
             justify-content: center;
-
+            flex-wrap: wrap;
+            gap: 0.5rem;
             margin-top: 1rem;
         }
 
@@ -185,6 +244,41 @@
             cursor: pointer;
             user-select: none;
         }
+
+        .score-increase {
+            animation: score-increase-animation 3s ease;
+        }
+
+        .score-decrease {
+            animation: score-decrease-animation 3s ease;
+        }
+
+        @keyframes score-increase-animation {
+            0% {
+                color: #4CAF50;
+                transform: scale(1.2);
+            }
+
+            /* Green */
+            100% {
+                color: black;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes score-decrease-animation {
+            0% {
+                color: #da3226;
+                transform: scale(1.2);
+            }
+
+            /* Red */
+            100% {
+                color: black;
+                transform: scale(1);
+            }
+        }
+
 
         button {
             margin: 0.2rem;
@@ -286,6 +380,63 @@
                 opacity: 0;
             }
         }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 600px;
+            border-radius: 8px;
+            text-align: left;
+        }
+
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .modal-footer {
+            padding-top: 1rem;
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+        }
+
+        .modal-footer button {
+            padding: 0.6rem 1.2rem;
+            font-size: 1rem;
+            border-radius: 5px;
+            border: none;
+            color: white;
+        }
+
+        .modal-confirm-btn {
+            background-color: #4d9dbd;
+            /* Green */
+        }
+
+        .modal-cancel-btn {
+            background-color: #828282;
+            /* Red */
+        }
     </style>
 </head>
 
@@ -294,6 +445,7 @@
         <div id="branding" class="branding">Guard.</div>
         <div class="right-buttons">
             <button id="togglePlayersBtn">3 Players</button>
+            <button id="undoBtn">Undo</button>
             <button class="reset" onclick="confirmReset()">Reset Game</button>
         </div>
     </div>
@@ -308,12 +460,27 @@
         <!-- Player cards inserted here -->
     </div>
 
+    <div id="lastUpdate"></div>
     <div id="roundOrder">Round Order: Player 1 → Player 2 → Player 3</div>
+
+    <div id="gameLogModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <div id="gameLogContent"></div>
+            <div class="modal-footer" id="gameLogFooter"></div>
+        </div>
+    </div>
 
     <script>
         let scores = {};
         let order = [1, 2, 3];
         let isFourPlayers = false;
+
+        // Logs for Undo functionality
+        let historyLog = [];
+        let scoreLog = [];
+        let orderLog = [];
+
 
         function createPlayerCard(player) {
             const card = document.createElement('div');
@@ -326,10 +493,11 @@
         <input class="name-input" id="nameInput${player}" style="display:none" />
         <div class="score" id="score${player}">0</div>
         <div class="action-buttons">
-        <button class="win" onclick="changeScore(${player}, 'win')">Win</button> 
-        <button class="foul" onclick="changeScore(${player}, 'foul')">Foul!</button> </div>
-        <button class="bc" onclick="changeScore(${player}, 'bc')">BC</button>
-        
+            <button class="win" onclick="changeScore(${player}, 'win', this)">Win</button> 
+            <button class="foul" onclick="changeScore(${player}, 'foul', this)">Foul!</button>
+            <button class="bc" onclick="changeScore(${player}, 'bc', this)">BC</button>
+            <button class="bc" onclick="changeScore(${player}, 'gb', this)">GB</button>
+        </div>
       `;
 
             document.getElementById("scoreboard").appendChild(card);
@@ -375,12 +543,38 @@
             delete scores[player];
         }
 
+        function triggerFlash(elementId) {
+            const elem = document.getElementById(elementId);
+            elem.classList.remove('flash-sweep');
+            void elem.offsetWidth; // Force reflow
+            elem.classList.add('flash-sweep');
+        }
+
+        function formatTime(date) {
+            const now = new Date(date);
+            let hours = now.getHours();
+            let minutes = now.getMinutes();
+            const ampm = hours >= 12 ? 'pm' : 'am';
+            hours = hours % 12;
+            hours = hours ? hours : 12; // the hour '0' should be '12'
+            minutes = minutes < 10 ? '0' + minutes : minutes;
+            return `${hours}:${minutes}${ampm}`;
+        }
+
+
+        function updateLastUpdate(historyEntry) {
+            const timeString = formatTime(historyEntry.time);
+            document.getElementById('lastUpdate').textContent = `Last Update (${timeString}): ${historyEntry.text}`;
+            triggerFlash('lastUpdate');
+        }
+
         function updateRoundOrder() {
             const names = order.map(i => {
                 const label = document.getElementById(`nameLabel${i}`);
                 return label ? label.textContent : `Player ${i}`;
             });
             document.getElementById("roundOrder").textContent = `Round Order: ${names.join(" → ")}`;
+            triggerFlash('roundOrder');
         }
 
         function getPointsFor(action) {
@@ -390,20 +584,41 @@
             return 0;
         }
 
-        function changeScore(player, action) {
-            const points = getPointsFor(action);
+        function logState(message) {
+            historyLog.push({
+                text: message,
+                time: new Date()
+            });
+            scoreLog.push(JSON.parse(JSON.stringify(scores)));
+            orderLog.push([...order]);
+            document.getElementById('undoBtn').disabled = false;
+        }
+
+        function changeScore(player, action, element) {
+            let message = '';
+            const playerName = document.getElementById(`nameLabel${player}`).textContent;
+
             const idx = order.indexOf(player);
 
             if (action === 'win') {
+                const points = getPointsFor(action);
                 scores[player] += points;
-                const prev = order[(idx - 1 + order.length) % order.length];
-                scores[prev] -= points;
+                const prevPlayerIndex = (idx - 1 + order.length) % order.length;
+                const prevPlayer = order[prevPlayerIndex];
+                scores[prevPlayer] -= points;
+                const prevPlayerName = document.getElementById(`nameLabel${prevPlayer}`).textContent;
+                message = `${playerName} won ${prevPlayerName}.`;
                 updateOrderAfterWin(player);
             } else if (action === 'foul') {
+                const points = getPointsFor(action);
                 scores[player] -= points;
-                const next = order[(idx + order.length-1) % order.length];
-                scores[next] += points;
-            } else if (action === 'bc') {
+                const prevPlayerIndex = (idx - 1 + order.length) % order.length;
+                const prevPlayer = order[prevPlayerIndex];
+                scores[prevPlayer] += points;
+                const prevPlayerName = document.getElementById(`nameLabel${prevPlayer}`).textContent;
+                message = `${playerName} fouled to ${prevPlayerName}.`;
+            } else if (action === 'bc' || action === 'gb') {
+                const points = (action === 'bc') ? getPointsFor('bc') : getPointsFor('win');
                 let others = order.filter(p => p !== player);
                 let totalLoss = 0;
                 for (let p of others) {
@@ -411,21 +626,47 @@
                     totalLoss += points;
                 }
                 scores[player] += totalLoss;
-                // 🎆 Trigger fireworks on BC button
-                const card = document.getElementById(`playerCard${player}`);
-                const bcButton = card.querySelector('.bc');
-                launchFireworksAtElement(bcButton);
-                rainLeaves();
+
+                if (element) {
+                    launchFireworksAtElement(element);
+                    rainLeaves();
+                }
+                if (action === 'bc') {
+                    message = `${playerName} broke clear!`;
+                } else { // gb
+                    message = `${playerName} golden break!`;
+                }
             }
 
+            logState(message);
+            updateLastUpdate(historyLog[historyLog.length - 1]);
+            console.log(`Action: ${message}`, '| Scores After:', scores);
+
+
             updateAllScores();
-            updateBCButtons();
+            updateSpecialActionButtons();
         }
 
-        function updateAllScores() {
+        function updateAllScores(scoresToCompareAgainst) {
+            const oldScores = scoresToCompareAgainst || (scoreLog.length > 1 ? scoreLog[scoreLog.length - 2] : {});
+
             for (let i in scores) {
                 const scoreElem = document.getElementById(`score${i}`);
-                if (scoreElem) scoreElem.textContent = scores[i];
+                if (scoreElem) {
+                    const oldScore = oldScores[i] !== undefined ? oldScores[i] : 0;
+                    const newScore = scores[i];
+
+                    scoreElem.textContent = newScore;
+
+                    scoreElem.classList.remove('score-increase', 'score-decrease');
+                    void scoreElem.offsetWidth; // Force reflow
+
+                    if (newScore > oldScore) {
+                        scoreElem.classList.add('score-increase');
+                    } else if (newScore < oldScore) {
+                        scoreElem.classList.add('score-decrease');
+                    }
+                }
 
                 const card = document.getElementById(`playerCard${i}`);
                 if (card) {
@@ -453,74 +694,242 @@
             }
         }
 
-        function updateBCButtons() {
+        function updateSpecialActionButtons() {
             for (let i in scores) {
                 const card = document.getElementById(`playerCard${i}`);
                 if (!card) continue;
-                const bcBtn = card.querySelector('.bc');
-                if (!bcBtn) continue;
-                bcBtn.disabled = (parseInt(i) !== order[0]);
+                const specialButtons = card.querySelectorAll('.bc');
+                if (specialButtons.length > 0) {
+                    specialButtons.forEach(btn => {
+                        btn.disabled = (parseInt(i) !== order[0]);
+                    });
+                }
             }
         }
 
         function confirmReset() {
-            if (confirm("Are you sure to reset the scores?")) {
-                resetScores();
-            }
+            showConfirmation("Are you sure you want to reset the game? This action cannot be undone.", resetScores);
         }
 
-        function togglePlayersMode() {
-            if (!confirm("Change mode? This will reset the scores.")) return;
+        function resetScores() {
+            const message = 'Game Reset';
+            historyLog = [];
+            scoreLog = [];
+            orderLog = [];
 
-            resetScores();
+            for (let i in scores) scores[i] = 0;
 
-            if (isFourPlayers) {
-                removePlayerCard(4);
-                order = [1, 2, 3];
-                document.getElementById('togglePlayersBtn').textContent = '3 Players';
-                isFourPlayers = false;
-                document.getElementById('scoreboard').classList.remove('four-players');
-                document.getElementById('scoreboard').classList.add('three-players');
-            } else {
-                createPlayerCard(4);
-                order = [1, 2, 3, 4];
-                document.getElementById('togglePlayersBtn').textContent = '4 Players';
-                isFourPlayers = true;
-                document.getElementById('scoreboard').classList.remove('three-players');
-                document.getElementById('scoreboard').classList.add('four-players');
-            }
+            logState(message);
 
+            console.log(`Action: ${message}`, '| All scores reset.');
+            updateLastUpdate(historyLog[historyLog.length - 1]);
             updateAllScores();
-            updateBCButtons();
+
+            document.getElementById('undoBtn').disabled = true;
+        }
+
+
+        function togglePlayersMode() {
+            const futurePlayerCount = isFourPlayers ? 3 : 4;
+            showConfirmation(`Change mode to ${futurePlayerCount} players? This will reset the scores.`, () => {
+                resetScores();
+
+                if (isFourPlayers) {
+                    removePlayerCard(4);
+                    order = [1, 2, 3];
+                    isFourPlayers = false;
+                    document.getElementById('togglePlayersBtn').textContent = '3 Players';
+                    document.getElementById('scoreboard').classList.remove('four-players');
+                    document.getElementById('scoreboard').classList.add('three-players');
+                } else {
+                    createPlayerCard(4);
+                    order = [1, 2, 3, 4];
+                    isFourPlayers = true;
+                    document.getElementById('togglePlayersBtn').textContent = '4 Players';
+                    document.getElementById('scoreboard').classList.remove('three-players');
+                    document.getElementById('scoreboard').classList.add('four-players');
+                }
+
+                updateAllScores();
+                updateSpecialActionButtons();
+            });
         }
 
         function addScoreClickListener(player) {
             const scoreElem = document.getElementById(`score${player}`);
             if (!scoreElem) return;
             scoreElem.addEventListener('click', () => {
-                let newScore = prompt(`Enter new score for ${document.getElementById(`nameLabel${player}`).textContent}:`, scores[player]);
+                const playerName = document.getElementById(`nameLabel${player}`).textContent;
+                let newScore = prompt(`Enter new score for ${playerName}:`, scores[player]);
                 if (newScore === null) return;
                 newScore = newScore.trim();
                 if (/^-?\d+$/.test(newScore)) {
+                    const message = `${playerName}'s score manually set to ${newScore}.`;
                     scores[player] = parseInt(newScore);
+                    logState(message);
+                    updateLastUpdate(historyLog[historyLog.length - 1]);
+                    console.log(`Action: ${message}`, '| Scores After:', scores);
                     updateAllScores();
-                    updateBCButtons();
+                    updateSpecialActionButtons();
                 } else {
                     alert("Please enter a valid integer number.");
                 }
             });
         }
 
-        function resetScores() {
-            for (let i in scores) scores[i] = 0;
-            updateAllScores();
+        function undoLastAction() {
+            if (historyLog.length <= 1) {
+                alert("Nothing to undo.");
+                return;
+            }
+
+            const lastActionMessage = historyLog[historyLog.length - 1].text;
+            showConfirmation(`Are you sure you want to undo this action?<br><br><i>"${lastActionMessage}"</i>`, () => {
+                const undoneScores = JSON.parse(JSON.stringify(scoreLog[scoreLog.length - 1]));
+
+                historyLog.pop();
+                scoreLog.pop();
+                orderLog.pop();
+
+                const previousScores = scoreLog[scoreLog.length - 1];
+                const previousOrder = orderLog[orderLog.length - 1];
+                const previousMessage = historyLog[historyLog.length - 1];
+
+                scores = JSON.parse(JSON.stringify(previousScores));
+                order = [...previousOrder];
+
+                updateAllScores(undoneScores);
+                updateSpecialActionButtons();
+                updateLastUpdate(previousMessage);
+                console.log("Undo successful. Reverted to previous state:", {
+                    scores,
+                    order
+                });
+
+                if (historyLog.length <= 1) {
+                    document.getElementById('undoBtn').disabled = true;
+                }
+            });
         }
 
         function init() {
             [1, 2, 3].forEach(createPlayerCard);
             document.getElementById('togglePlayersBtn').addEventListener('click', togglePlayersMode);
+            document.getElementById('undoBtn').addEventListener('click', undoLastAction);
+            document.getElementById('lastUpdate').addEventListener('click', showGameLog);
+            document.querySelector('.reset').addEventListener('click', confirmReset);
+
+
+            const message = 'Game Started';
+            logState(message);
+            updateLastUpdate(historyLog[historyLog.length - 1]);
+            console.log(`Action: ${message}`, '| Initial State:', {
+                scores,
+                order
+            });
+
             updateRoundOrder();
-            updateBCButtons();
+            updateSpecialActionButtons();
+            document.getElementById('undoBtn').disabled = true;
+        }
+
+        function showConfirmation(message, onConfirm) {
+            const modal = document.getElementById('gameLogModal');
+            const contentEl = document.getElementById('gameLogContent');
+            const footerEl = document.getElementById('gameLogFooter');
+
+            contentEl.innerHTML = `<p>${message}</p>`;
+            footerEl.innerHTML = `
+                <button class="modal-confirm-btn">Confirm</button>
+                <button class="modal-cancel-btn">Cancel</button>
+            `;
+            modal.style.display = 'block';
+
+            const confirmBtn = footerEl.querySelector('.modal-confirm-btn');
+            const cancelBtn = footerEl.querySelector('.modal-cancel-btn');
+            const closeBtn = modal.querySelector('.close-button');
+
+            const closeModal = () => {
+                modal.style.display = 'none';
+                contentEl.innerHTML = '';
+                footerEl.innerHTML = '';
+            };
+
+            confirmBtn.onclick = () => {
+                onConfirm();
+                closeModal();
+            };
+            cancelBtn.onclick = closeModal;
+            closeBtn.onclick = closeModal;
+            window.onclick = (event) => {
+                if (event.target == modal) {
+                    closeModal();
+                }
+            };
+        }
+
+        function showGameLog() {
+            const modal = document.getElementById('gameLogModal');
+            const contentEl = document.getElementById('gameLogContent');
+            const footerEl = document.getElementById('gameLogFooter');
+            footerEl.innerHTML = ''; // Clear footer for log view
+
+            // Calculate stats
+            let racksPlayed = 0;
+            const playerStats = {};
+            for (let i = 1; i <= (isFourPlayers ? 4 : 3); i++) {
+                playerStats[i] = {
+                    wins: 0,
+                    fouls: 0,
+                    bcgb: 0
+                };
+            }
+
+            historyLog.forEach(entry => {
+                const text = entry.text.toLowerCase();
+                if (text.includes('won') || text.includes('broke clear') || text.includes('golden break')) {
+                    racksPlayed++;
+                }
+
+                for (let i = 1; i <= (isFourPlayers ? 4 : 3); i++) {
+                    const playerName = document.getElementById(`nameLabel${i}`).textContent.toLowerCase();
+                    if (text.startsWith(playerName)) {
+                        if (text.includes('won')) playerStats[i].wins++;
+                        if (text.includes('fouled')) playerStats[i].fouls++;
+                        if (text.includes('broke clear') || text.includes('golden break')) playerStats[i].bcgb++;
+                    }
+                }
+            });
+
+            // Build content string
+            let content = `<h3>Game Summary</h3>`;
+            content += `<p><b>Racks Played:</b> ${racksPlayed}</p>`;
+            content += '<ul>';
+            for (let i = 1; i <= (isFourPlayers ? 4 : 3); i++) {
+                const playerName = document.getElementById(`nameLabel${i}`).textContent;
+                const stats = playerStats[i];
+                content += `<li><b>${playerName}:</b> ${stats.wins} Wins, ${stats.fouls} Fouls, ${stats.bcgb} BC/GB</li>`;
+            }
+            content += '</ul>';
+            content += '<hr>';
+            content += '<h3>Action History</h3>';
+            content += '<ul>';
+            historyLog.forEach(entry => {
+                content += `<li>(${formatTime(entry.time)}) ${entry.text}</li>`;
+            });
+            content += '</ul>';
+
+            contentEl.innerHTML = content;
+            modal.style.display = 'block';
+
+            // Close modal logic
+            const closeBtn = modal.querySelector('.close-button');
+            closeBtn.onclick = () => modal.style.display = 'none';
+            window.onclick = (event) => {
+                if (event.target == modal) {
+                    modal.style.display = 'none';
+                }
+            };
         }
 
 
@@ -528,36 +937,25 @@
             const leaf = document.createElement('div');
             leaf.classList.add('leaf');
 
-            // Randomly choose between clover leaf or money bag
             const emojis = ['🤑', '🍀', '💰'];
             leaf.textContent = emojis[Math.floor(Math.random() * emojis.length)];
 
-            // Random horizontal position (within viewport width)
             leaf.style.left = Math.random() * window.innerWidth + 'px';
-
-            // Random size between 16px and 40px
             const size = 16 + Math.random() * 24;
             leaf.style.fontSize = size + 'px';
-
-            // Random animation duration between 3s and 7s
             const duration = 3 + Math.random() * 4;
             leaf.style.animationDuration = duration + 's';
-
-            // Random animation delay (to spread out leaves)
             leaf.style.animationDelay = (Math.random() * 2) + 's';
-
-            // Random rotation start angle
             leaf.style.transform = `rotate(${Math.random() * 360}deg)`;
 
             document.body.appendChild(leaf);
 
-            // Remove leaf after animation ends
             leaf.addEventListener('animationend', () => {
                 leaf.remove();
             });
         }
+
         function rainLeaves() {
-            // Spawn 30 leaves over 1.5 seconds
             let count = 0;
             const interval = setInterval(() => {
                 createLeaf();
@@ -566,7 +964,6 @@
             }, 50);
         }
 
-        // Add event listener to your "Guard." label element
         document.getElementById('branding').addEventListener('click', rainLeaves);
 
 
