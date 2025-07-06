@@ -502,7 +502,10 @@
 
             document.getElementById("scoreboard").appendChild(card);
 
-            scores[player] = 0;
+            // Initialize score only if it's not already loaded from localStorage
+            if (scores[player] === undefined) {
+                scores[player] = 0;
+            }
 
             // Name editing logic
             const nameLabel = document.getElementById(`nameLabel${player}`);
@@ -523,6 +526,7 @@
                 nameLabel.style.display = 'block';
                 nameInput.style.display = 'none';
                 updateRoundOrder();
+                saveGameState();
             });
 
             nameInput.addEventListener('keydown', (e) => {
@@ -641,6 +645,7 @@
             logState(message);
             updateLastUpdate(historyLog[historyLog.length - 1]);
             console.log(`Action: ${message}`, '| Scores After:', scores);
+            saveGameState();
 
 
             updateAllScores();
@@ -726,6 +731,8 @@
             updateAllScores();
 
             document.getElementById('undoBtn').disabled = true;
+            localStorage.removeItem('guardBoardGameState');
+            console.log('Game state cleared from localStorage.');
         }
 
 
@@ -752,6 +759,7 @@
 
                 updateAllScores();
                 updateSpecialActionButtons();
+                saveGameState();
             });
         }
 
@@ -771,6 +779,7 @@
                     console.log(`Action: ${message}`, '| Scores After:', scores);
                     updateAllScores();
                     updateSpecialActionButtons();
+                    saveGameState();
                 } else {
                     alert("Please enter a valid integer number.");
                 }
@@ -809,28 +818,103 @@
                 if (historyLog.length <= 1) {
                     document.getElementById('undoBtn').disabled = true;
                 }
+                saveGameState();
             });
         }
 
+        function saveGameState() {
+            const gameState = {
+                playerNames: {},
+                scores: scores,
+                order: order,
+                isFourPlayers: isFourPlayers,
+                historyLog: historyLog,
+                scoreLog: scoreLog,
+                orderLog: orderLog
+            };
+            // Save player names separately as they are in the DOM
+            for (let i = 1; i <= (isFourPlayers ? 4 : 3); i++) {
+                const nameLabel = document.getElementById(`nameLabel${i}`);
+                if (nameLabel) {
+                    gameState.playerNames[i] = nameLabel.textContent;
+                }
+            }
+            localStorage.setItem('guardBoardGameState', JSON.stringify(gameState));
+            console.log('Game state saved to localStorage.');
+        }
+
+        function loadGameState() {
+            const savedState = localStorage.getItem('guardBoardGameState');
+            if (savedState) {
+                const gameState = JSON.parse(savedState);
+
+                scores = gameState.scores || {};
+                order = gameState.order || [1, 2, 3];
+                isFourPlayers = gameState.isFourPlayers || false;
+                historyLog = gameState.historyLog || [];
+                scoreLog = gameState.scoreLog || [];
+                orderLog = gameState.orderLog || [];
+
+                // Recreate player cards based on loaded state
+                const scoreboard = document.getElementById("scoreboard");
+                scoreboard.innerHTML = ''; // Clear existing cards
+
+                const playerCount = isFourPlayers ? 4 : 3;
+                for (let i = 1; i <= playerCount; i++) {
+                    createPlayerCard(i);
+                }
+
+                // Set player names
+                if (gameState.playerNames) {
+                    for (let i in gameState.playerNames) {
+                        const nameLabel = document.getElementById(`nameLabel${i}`);
+                        if (nameLabel) {
+                            nameLabel.textContent = gameState.playerNames[i];
+                        }
+                    }
+                }
+
+                document.getElementById('togglePlayersBtn').textContent = isFourPlayers ? '4 Players' : '3 Players';
+                scoreboard.classList.remove('three-players', 'four-players');
+                scoreboard.classList.add(isFourPlayers ? 'four-players' : 'three-players');
+
+                updateAllScores();
+                updateRoundOrder();
+                updateSpecialActionButtons();
+                if (historyLog.length > 0) {
+                    updateLastUpdate(historyLog[historyLog.length - 1]);
+                } else {
+                    document.getElementById('lastUpdate').textContent = 'No recent updates.';
+                }
+                document.getElementById('undoBtn').disabled = historyLog.length <= 1;
+
+                console.log('Game state loaded from localStorage.');
+                return true;
+            }
+            return false;
+        }
+
         function init() {
-            [1, 2, 3].forEach(createPlayerCard);
             document.getElementById('togglePlayersBtn').addEventListener('click', togglePlayersMode);
             document.getElementById('undoBtn').addEventListener('click', undoLastAction);
             document.getElementById('lastUpdate').addEventListener('click', showGameLog);
             document.querySelector('.reset').addEventListener('click', confirmReset);
 
-
-            const message = 'Game Started';
-            logState(message);
-            updateLastUpdate(historyLog[historyLog.length - 1]);
-            console.log(`Action: ${message}`, '| Initial State:', {
-                scores,
-                order
-            });
+            if (!loadGameState()) {
+                // If no saved state, initialize default 3 players
+                [1, 2, 3].forEach(createPlayerCard);
+                const message = 'Game Started';
+                logState(message);
+                updateLastUpdate(historyLog[historyLog.length - 1]);
+                console.log(`Action: ${message}`, '| Initial State:', {
+                    scores,
+                    order
+                });
+                document.getElementById('undoBtn').disabled = true;
+            }
 
             updateRoundOrder();
             updateSpecialActionButtons();
-            document.getElementById('undoBtn').disabled = true;
         }
 
         function showConfirmation(message, onConfirm) {
