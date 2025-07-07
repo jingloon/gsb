@@ -10,7 +10,7 @@
             font-family: Arial, sans-serif;
             background: #f5f5f5;
             margin: 0;
-            padding: 5.5rem 0 5.5rem;
+            padding: 5.5rem 0 3.6rem;
             /* top + bottom padding for fixed elements */
             text-align: center;
         }
@@ -110,39 +110,53 @@
             border: 1px solid #ccc;
         }
 
-        /* Round Order fixed at bottom */
-        #roundOrder {
+        /* Bottom fixed container for round order and last update */
+        .bottom-fixed-container {
             position: fixed;
-            bottom: 2.1rem;
+            bottom: 0;
             left: 0;
             right: 0;
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+            box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        #roundOrder {
             background: #7fc6a4;
             font-size: 1rem;
             font-weight: bold;
             padding: 0.4rem 1rem;
-            box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.2);
             user-select: none;
-            z-index: 1000;
-            overflow: hidden;
+            overflow: hidden; /* Hide overflow, but allow content inside to scroll */
+            white-space: nowrap; /* Ensure content stays on one line */
+        }
+
+        .marquee-content {
+            display: inline-block;
+            white-space: nowrap;
+        }
+
+        /* Marquee effect for .marquee-content when text overflows */
+        #roundOrder.marquee .marquee-content {
+            animation: marquee 20s linear infinite; /* Slower duration */
+        }
+
+        @keyframes marquee {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(var(--marquee-width)); }
         }
 
         #lastUpdate {
-            position: fixed;
-            bottom: 0;
-            /* Adjust based on roundOrder's height */
-            left: 0;
-            right: 0;
             background: #d8d8d8;
-            /* Match scoring-rules background */
             color: black;
-            /* Font color back to black */
             font-size: 1rem;
             padding: 0.4rem 1rem;
-            box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
             user-select: none;
-            z-index: 1000;
             text-align: center;
-            overflow: hidden;
+            
+            overflow: hidden; /* Hide overflow */
+            text-overflow: ellipsis; /* Add ellipsis for overflowed text */
             cursor: pointer;
         }
 
@@ -175,7 +189,7 @@
         .scoreboard {
             margin-top: 3.5rem;
             /* space for fixed menu + scoring fields */
-            margin-bottom: 3.5rem;
+            margin-bottom: 3.6rem;
             /* space for round order */
             display: grid;
             gap: 1rem;
@@ -444,7 +458,7 @@
     <div class="top-menu">
         <div id="branding" class="branding">Guard.</div>
         <div class="right-buttons">
-            <button id="togglePlayersBtn">3P</button>
+            <button id="togglePlayersBtn">3 Players</button>
             <button id="undoBtn">Undo</button>
             <button class="reset" onclick="confirmReset()">Reset</button>
         </div>
@@ -460,8 +474,10 @@
         <!-- Player cards inserted here -->
     </div>
 
-    <div id="lastUpdate"></div>
-    <div id="roundOrder">Round Order: P1 → P2 → P3</div>
+    <div class="bottom-fixed-container">
+        <div id="roundOrder"><span class="marquee-content">Round Order: Player 1 → Player 2 → Player 3</span></div>
+        <div id="lastUpdate"></div>
+    </div>
 
     <div id="gameLogModal" class="modal">
         <div class="modal-content">
@@ -489,7 +505,7 @@
 
             // Name label with click-to-edit functionality
             card.innerHTML = `
-        <div class="name-label" id="nameLabel${player}">P${player}</div>
+        <div class="name-label" id="nameLabel${player}">Player ${player}</div>
         <input class="name-input" id="nameInput${player}" style="display:none" />
         <div class="score" id="score${player}">0</div>
         <div class="action-buttons">
@@ -568,7 +584,9 @@
 
         function updateLastUpdate(historyEntry) {
             const timeString = formatTime(historyEntry.time);
-            document.getElementById('lastUpdate').textContent = `Last Update (${timeString}): ${historyEntry.text}`;
+            const lastUpdateElem = document.getElementById('lastUpdate');
+            lastUpdateElem.textContent = `📝 Last Update (${timeString}): ${historyEntry.text}`;
+            lastUpdateElem.title = "Click to view game log"; // Add tooltip
             triggerFlash('lastUpdate');
         }
 
@@ -577,8 +595,59 @@
                 const label = document.getElementById(`nameLabel${i}`);
                 return label ? label.textContent : `Player ${i}`;
             });
-            document.getElementById("roundOrder").textContent = `Round Order: ${names.join(" → ")}`;
+            const roundOrderElem = document.getElementById("roundOrder");
+            const marqueeContentElem = roundOrderElem.querySelector('.marquee-content');
+            const fullText = `Round Order: ${names.join(" → ")}`;
+            // Temporarily set content to original to measure its true width
+            marqueeContentElem.textContent = fullText;
+            roundOrderElem.classList.remove('marquee'); // Always remove first to re-evaluate
+
+            // Calculate the width of the original text
+            const originalTextWidth = marqueeContentElem.scrollWidth;
+
+            // Check if content overflows
+            if (originalTextWidth > roundOrderElem.clientWidth) {
+                // Set the CSS variable for animation
+                roundOrderElem.style.setProperty('--marquee-width', `-${originalTextWidth}px`);
+                // Duplicate the content for seamless marquee with a separator
+                marqueeContentElem.innerHTML = `${fullText}<span style="display:inline-block; width: 2rem;"></span>${fullText}`;
+                roundOrderElem.classList.add('marquee');
+            } else {
+                // If it doesn't overflow, ensure only original text is present
+                marqueeContentElem.textContent = fullText;
+                roundOrderElem.classList.remove('marquee');
+                roundOrderElem.style.removeProperty('--marquee-width'); // Clean up CSS variable
+            }
+
             triggerFlash('roundOrder');
+        }
+
+        function checkRoundOrderOverflow() {
+            const roundOrderElem = document.getElementById('roundOrder');
+            const marqueeContentElem = roundOrderElem.querySelector('.marquee-content');
+            // Get original text from the first span if duplicated, otherwise from textContent
+            const fullText = marqueeContentElem.querySelector('span') ? marqueeContentElem.querySelector('span').textContent : marqueeContentElem.textContent;
+
+            // Temporarily set content to original to measure its true width
+            marqueeContentElem.textContent = fullText;
+            roundOrderElem.classList.remove('marquee'); // Always remove first to re-evaluate
+
+            // Calculate the width of the original text
+            const originalTextWidth = marqueeContentElem.scrollWidth;
+
+            // Check if content overflows
+            if (originalTextWidth > roundOrderElem.clientWidth) {
+                // Set the CSS variable for animation
+                roundOrderElem.style.setProperty('--marquee-width', `-${originalTextWidth}px`);
+                // Duplicate the content for seamless marquee with a separator
+                marqueeContentElem.innerHTML = `${fullText}<span style="display:inline-block; width: 2rem;"></span>${fullText}`;
+                roundOrderElem.classList.add('marquee');
+            } else {
+                // If it doesn't overflow, ensure only original text is present
+                marqueeContentElem.textContent = fullText;
+                roundOrderElem.classList.remove('marquee');
+                roundOrderElem.style.removeProperty('--marquee-width'); // Clean up CSS variable
+            }
         }
 
         function getPointsFor(action) {
@@ -745,14 +814,14 @@
                     removePlayerCard(4);
                     order = [1, 2, 3];
                     isFourPlayers = false;
-                    document.getElementById('togglePlayersBtn').textContent = '3P';
+                    document.getElementById('togglePlayersBtn').textContent = '3 Players';
                     document.getElementById('scoreboard').classList.remove('four-players');
                     document.getElementById('scoreboard').classList.add('three-players');
                 } else {
                     createPlayerCard(4);
                     order = [1, 2, 3, 4];
                     isFourPlayers = true;
-                    document.getElementById('togglePlayersBtn').textContent = '4P';
+                    document.getElementById('togglePlayersBtn').textContent = '4 Players';
                     document.getElementById('scoreboard').classList.remove('three-players');
                     document.getElementById('scoreboard').classList.add('four-players');
                 }
@@ -899,6 +968,7 @@
             document.getElementById('undoBtn').addEventListener('click', undoLastAction);
             document.getElementById('lastUpdate').addEventListener('click', showGameLog);
             document.querySelector('.reset').addEventListener('click', confirmReset);
+            window.addEventListener('resize', checkRoundOrderOverflow);
 
             if (!loadGameState()) {
                 // If no saved state, initialize default 3 players
@@ -915,6 +985,7 @@
 
             updateRoundOrder();
             updateSpecialActionButtons();
+            checkRoundOrderOverflow();
         }
 
         function showConfirmation(message, onConfirm) {
