@@ -1278,7 +1278,7 @@
             players.forEach(i => {
                 const playerName = document.getElementById(`nameLabel${i}`).textContent;
                 const stats = playerStats[i];
-                content += `<li><b>${playerName}:</b> ${stats.wins} Wins, ${stats.fouls} Fouls </li><li>${stats.bc} Break Clear, ${stats.gb} Golden Break, ${stats.bnc} Break&Combi</li>`;
+                content += `<li><b>${playerName}:</b> <ul><li>${stats.wins} Wins, ${stats.fouls} Fouls </li><li>${stats.bc} Break Clear, ${stats.gb} Golden Break, ${stats.bnc} Break&Combi</li></ul>`;
             });
             content += '</ul>';
             content += '<hr>';
@@ -1535,4 +1535,5 @@
 </body>
 
 </html>
+
 
