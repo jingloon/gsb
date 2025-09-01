@@ -759,7 +759,7 @@
                 scores[player] += points;
                 scores[prevPlayer] -= points;
 
-                message = `${playerName} (${oldScores[player]} → ${scores[player]}) won ${prevPlayerName} (${oldScores[prevPlayer]} → ${scores[prevPlayer]}).`;
+                message = `${playerName} (→ ${scores[player]}) won ${prevPlayerName} (→ ${scores[prevPlayer]}).`;
 
                 if (!headToHeadStats[player]) {
                     headToHeadStats[player] = {};
@@ -776,7 +776,7 @@
                 scores[player] -= points;
                 scores[prevPlayer] += points;
 
-                message = `${playerName} (${oldScores[player]} → ${scores[player]}) fouled to ${prevPlayerName} (${oldScores[prevPlayer]} → ${scores[prevPlayer]}).`;
+                message = `${playerName} (→ ${scores[player]}) fouled to ${prevPlayerName} (→ ${scores[prevPlayer]}).`;
 
                 if (!snookStats[prevPlayer]) {
                     snookStats[prevPlayer] = {};
@@ -816,7 +816,7 @@
                 for (let p of others) {
                     scores[p] -= points;
                     totalLoss += points;
-                    scoreUpdateStrings.push(`${document.getElementById(`nameLabel${p}`).textContent} (${oldScores[p]} → ${scores[p]})`);
+                    scoreUpdateStrings.push(`${document.getElementById(`nameLabel${p}`).textContent} (→ ${scores[p]})`);
                 }
                 scores[player] += totalLoss;
 
@@ -826,10 +826,10 @@
                 }
                 
                 if (action === 'dc') {
-                    message = `${playerName} (${oldScores[player]} → ${scores[player]}) cleared a dry break! ${scoreUpdateStrings.join('')}.`;
+                    message = `${playerName} (→ ${scores[player]}) cleared a dry break!`;
                     updateOrderAfterWin(player);
                 } else {
-                    message = `${playerName} (${oldScores[player]} → ${scores[player]}) ${messageActionText}! Others: ${scoreUpdateStrings.join(', ')}.`;
+                    message = `${playerName} (→ ${scores[player]}) ${messageActionText}! `;
                 }
             }
 
@@ -1278,13 +1278,13 @@
             players.forEach(i => {
                 const playerName = document.getElementById(`nameLabel${i}`).textContent;
                 const stats = playerStats[i];
-                content += `<li><b>${playerName}:</b> ${stats.wins} Wins, ${stats.fouls} Fouls, ${stats.bc} Break Clear, ${stats.gb} Golden Break, ${stats.bnc} Break&Combi</li>`;
+                content += `<li><b>${playerName}:</b> ${stats.wins} Wins, ${stats.fouls} Fouls </li><li>${stats.bc} Break Clear, ${stats.gb} Golden Break, ${stats.bnc} Break&Combi</li>`;
             });
             content += '</ul>';
             content += '<hr>';
 
             // Head-to-Head Table
-            content += '<h3>Head-to-Head Wins</h3>';
+            content += '<h3>Head-to-Head</h3>';
             const playerNames = players.map(p => document.getElementById(`nameLabel${p}`).textContent);
 
             content += `<style>
@@ -1298,7 +1298,7 @@
 
             content += '<table class="h2h-table">';
             // Header row
-            content += '<tr><th>↓ Winner / Loser →</th>';
+            content += '<tr><th>↓ Win / Lose →</th>';
             playerNames.forEach(name => {
                 content += `<th class="loser-header">${name}</th>`;
             });
@@ -1321,10 +1321,10 @@
             content += '</table>';
 
             // Snooks Summary Table
-            content += '<h3>Snooks Summary</h3>';
+            content += '<h3>Fouls</h3>';
             content += '<table class="h2h-table">';
             // Header row
-            content += '<tr><th>↓ Snooker / Snookered →</th>';
+            content += '<tr><th>↓ Snooked / Fouled To →</th>';
             playerNames.forEach(name => {
                 content += `<th class="loser-header">${name}</th>`;
             });
@@ -1535,3 +1535,4 @@
 </body>
 
 </html>
+
