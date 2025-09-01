@@ -5,6 +5,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>GUARD BOARD</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -72,9 +73,11 @@
         }
 
         .right-buttons #undoBtn:disabled {
-            background-color: #8c9399;
-            /* Default grey */
+            background: #555555;
+            color: #666;
+            border: none;
             cursor: not-allowed;
+            box-shadow: none;
         }
 
         /* Scoring fields fixed below menu */
@@ -309,6 +312,14 @@
             color: white;
         }
 
+        .win:disabled {
+            background: #555555;
+            color: #666;
+            border: none;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
         .foul {
             background-color: #da3226;
             color: white;
@@ -321,7 +332,13 @@
             box-shadow: 0 0 8px #FFD700, inset 0 1px 1px rgba(255, 255, 255, 0.6);
         }
 
-        .bc:disabled {
+        .bc-no-glow {
+            background: linear-gradient(45deg, #FFD700, #FFC300, #FFB700);
+            color: white;
+            border: 1px solid #b38600;
+        }
+
+        .bc:disabled, .bc-no-glow:disabled {
             background: #555555;
             color: #666;
             border: none;
@@ -451,6 +468,33 @@
             background-color: #828282;
             /* Red */
         }
+
+        .chart-container {
+            width: 94%;
+            max-width: 1200px;
+            margin: 1rem auto 3.6rem;
+            padding: 1rem;
+            box-sizing: border-box;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .chart-wrapper {
+            position: relative;
+            overflow-x: auto;
+            padding-bottom: 1rem;
+        }
+
+        #scoreChart {
+            height: 100%;
+            width: 100%;
+        }
+
+        #chart-sizer {
+            position: relative;
+            height: 300px;
+        }
     </style>
 </head>
 
@@ -474,6 +518,18 @@
         <!-- Player cards inserted here -->
     </div>
 
+    <div class="chart-container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h3>Timeline</h3>
+            <button id="exportChartBtn">Export as JPG</button>
+        </div>
+        <div class="chart-wrapper">
+            <div id="chart-sizer">
+                <canvas id="scoreChart"></canvas>
+            </div>
+        </div>
+    </div>
+
     <div class="bottom-fixed-container">
         <div id="roundOrder"><span class="marquee-content">Round Order: Player 1 → Player 2 → Player 3</span></div>
         <div id="lastUpdate"></div>
@@ -487,15 +543,33 @@
         </div>
     </div>
 
+    <div id="specialWinModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h3>Special Wins</h3>
+            <div class="action-buttons">
+                <button id="sw-bc" class="bc">Break Clear</button>
+                <button id="sw-gb" class="bc">Golden Break</button>
+                <button id="sw-bnc" class="win">Break-and-Combi</button>
+                <button id="sw-dc" class="win">Dry Clear</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let scores = {};
         let order = [1, 2, 3];
         let isFourPlayers = false;
+        let headToHeadStats = {};
+        let snookStats = {};
 
         // Logs for Undo functionality
         let historyLog = [];
         let scoreLog = [];
         let orderLog = [];
+        let headToHeadLog = [];
+        let snookLog = [];
+        let scoreChart;
 
 
         function createPlayerCard(player) {
@@ -511,8 +585,7 @@
         <div class="action-buttons">
             <button class="win" onclick="changeScore(${player}, 'win', this)">Win</button> 
             <button class="foul" onclick="changeScore(${player}, 'foul', this)">Foul!</button>
-            <button class="bc" onclick="changeScore(${player}, 'bc', this)">BC</button>
-            <button class="bc" onclick="changeScore(${player}, 'gb', this)">GB</button>
+            <button class="win-plus-plus" onclick="openSpecialWinModal(${player})">Win++</button>
         </div>
       `;
 
@@ -543,6 +616,7 @@
                 nameInput.style.display = 'none';
                 updateRoundOrder();
                 saveGameState();
+                renderScoreChart();
             });
 
             nameInput.addEventListener('keydown', (e) => {
@@ -664,39 +738,85 @@
             });
             scoreLog.push(JSON.parse(JSON.stringify(scores)));
             orderLog.push([...order]);
+            headToHeadLog.push(JSON.parse(JSON.stringify(headToHeadStats)));
+            snookLog.push(JSON.parse(JSON.stringify(snookStats)));
             document.getElementById('undoBtn').disabled = false;
         }
 
         function changeScore(player, action, element) {
             let message = '';
             const playerName = document.getElementById(`nameLabel${player}`).textContent;
+            const oldScores = JSON.parse(JSON.stringify(scores));
 
             const idx = order.indexOf(player);
 
             if (action === 'win') {
                 const points = getPointsFor(action);
-                scores[player] += points;
                 const prevPlayerIndex = (idx - 1 + order.length) % order.length;
                 const prevPlayer = order[prevPlayerIndex];
-                scores[prevPlayer] -= points;
                 const prevPlayerName = document.getElementById(`nameLabel${prevPlayer}`).textContent;
-                message = `${playerName} won ${prevPlayerName}.`;
+
+                scores[player] += points;
+                scores[prevPlayer] -= points;
+
+                message = `${playerName} (${oldScores[player]} → ${scores[player]}) won ${prevPlayerName} (${oldScores[prevPlayer]} → ${scores[prevPlayer]}).`;
+
+                if (!headToHeadStats[player]) {
+                    headToHeadStats[player] = {};
+                }
+                headToHeadStats[player][prevPlayer] = (headToHeadStats[player][prevPlayer] || 0) + 1;
+
                 updateOrderAfterWin(player);
             } else if (action === 'foul') {
                 const points = getPointsFor(action);
-                scores[player] -= points;
                 const prevPlayerIndex = (idx - 1 + order.length) % order.length;
                 const prevPlayer = order[prevPlayerIndex];
-                scores[prevPlayer] += points;
                 const prevPlayerName = document.getElementById(`nameLabel${prevPlayer}`).textContent;
-                message = `${playerName} fouled to ${prevPlayerName}.`;
-            } else if (action === 'bc' || action === 'gb') {
-                const points = (action === 'bc') ? getPointsFor('bc') : getPointsFor('win');
+
+                scores[player] -= points;
+                scores[prevPlayer] += points;
+
+                message = `${playerName} (${oldScores[player]} → ${scores[player]}) fouled to ${prevPlayerName} (${oldScores[prevPlayer]} → ${scores[prevPlayer]}).`;
+
+                if (!snookStats[prevPlayer]) {
+                    snookStats[prevPlayer] = {};
+                }
+                snookStats[prevPlayer][player] = (snookStats[prevPlayer][player] || 0) + 1;
+
+            } else if (action === 'bc' || action === 'gb' || action === 'b&c' || action === 'dc') {
+                let points;
+                let messageActionText = '';
                 let others = order.filter(p => p !== player);
                 let totalLoss = 0;
+                let scoreUpdateStrings = [];
+
+                if (action === 'bc') {
+                    points = getPointsFor('bc');
+                    messageActionText = 'broke clear';
+                } else if (action === 'gb') {
+                    points = getPointsFor('win');
+                    messageActionText = 'golden break';
+                } else if (action === 'b&c') {
+                    points = getPointsFor('win');
+                    messageActionText = 'break-and-combi';
+                } else if (action === 'dc') {
+                    points = getPointsFor('bc');
+                    const prevPlayerIndex = (idx - 1 + order.length) % order.length;
+                    const loser = order[prevPlayerIndex];
+                    others = [loser]; // Only the preceding player
+                    
+                    // Update H2H stats for Dry Clear
+                    if (!headToHeadStats[player]) {
+                        headToHeadStats[player] = {};
+                    }
+                    headToHeadStats[player][loser] = (headToHeadStats[player][loser] || 0) + 1;
+                }
+
+
                 for (let p of others) {
                     scores[p] -= points;
                     totalLoss += points;
+                    scoreUpdateStrings.push(`${document.getElementById(`nameLabel${p}`).textContent} (${oldScores[p]} → ${scores[p]})`);
                 }
                 scores[player] += totalLoss;
 
@@ -704,10 +824,12 @@
                     launchFireworksAtElement(element);
                     rainLeaves();
                 }
-                if (action === 'bc') {
-                    message = `${playerName} broke clear!`;
-                } else { // gb
-                    message = `${playerName} golden break!`;
+                
+                if (action === 'dc') {
+                    message = `${playerName} (${oldScores[player]} → ${scores[player]}) cleared a dry break! ${scoreUpdateStrings.join('')}.`;
+                    updateOrderAfterWin(player);
+                } else {
+                    message = `${playerName} (${oldScores[player]} → ${scores[player]}) ${messageActionText}! Others: ${scoreUpdateStrings.join(', ')}.`;
                 }
             }
 
@@ -719,6 +841,7 @@
 
             updateAllScores();
             updateSpecialActionButtons();
+            renderScoreChart();
         }
 
         function updateAllScores(scoresToCompareAgainst) {
@@ -772,13 +895,73 @@
             for (let i in scores) {
                 const card = document.getElementById(`playerCard${i}`);
                 if (!card) continue;
-                const specialButtons = card.querySelectorAll('.bc');
-                if (specialButtons.length > 0) {
-                    specialButtons.forEach(btn => {
-                        btn.disabled = (parseInt(i) !== order[0]);
-                    });
+                const winPlusPlusBtn = card.querySelector('.win-plus-plus');
+                if (winPlusPlusBtn) {
+                    const playerNum = parseInt(i);
+                    
+                    // Reset classes first
+                    winPlusPlusBtn.classList.remove('bc', 'bc-no-glow');
+
+                    if (playerNum === order[0]) { // P1
+                        winPlusPlusBtn.classList.add('bc');
+                        winPlusPlusBtn.disabled = false;
+                    } else if (playerNum === order[1]) { // P2
+                        winPlusPlusBtn.classList.add('bc-no-glow');
+                        winPlusPlusBtn.disabled = false;
+                    } else { // Others
+                        winPlusPlusBtn.classList.add('bc'); // Add a default for styling when disabled
+                        winPlusPlusBtn.disabled = true;
+                    }
                 }
             }
+        }
+
+        function openSpecialWinModal(player) {
+            const modal = document.getElementById('specialWinModal');
+            modal.style.display = 'block';
+
+            const closeModal = () => {
+                modal.style.display = 'none';
+            };
+
+            const isP1 = (player === order[0]);
+            const isP2 = (player === order[1]);
+
+            const bcBtn = document.getElementById('sw-bc');
+            const gbBtn = document.getElementById('sw-gb');
+            const bncBtn = document.getElementById('sw-bnc');
+            const dcBtn = document.getElementById('sw-dc');
+
+            // Set disabled state based on player position
+            bcBtn.disabled = !isP1;
+            gbBtn.disabled = !isP1;
+            bncBtn.disabled = !isP1;
+            dcBtn.disabled = !isP2;
+
+            // Assign onclick handlers
+            bcBtn.onclick = () => {
+                changeScore(player, 'bc', document.getElementById(`playerCard${player}`));
+                closeModal();
+            };
+            gbBtn.onclick = () => {
+                changeScore(player, 'gb', document.getElementById(`playerCard${player}`));
+                closeModal();
+            };
+            bncBtn.onclick = () => {
+                changeScore(player, 'b&c', document.getElementById(`playerCard${player}`));
+                closeModal();
+            };
+            dcBtn.onclick = () => {
+                changeScore(player, 'dc', document.getElementById(`playerCard${player}`));
+                closeModal();
+            };
+
+            modal.querySelector('.close-button').onclick = closeModal;
+            window.onclick = (event) => {
+                if (event.target == modal) {
+                    closeModal();
+                }
+            };
         }
 
         function confirmReset() {
@@ -790,6 +973,10 @@
             historyLog = [];
             scoreLog = [];
             orderLog = [];
+            headToHeadStats = {};
+            headToHeadLog = [];
+            snookStats = {};
+            snookLog = [];
 
             for (let i in scores) scores[i] = 0;
 
@@ -798,6 +985,7 @@
             console.log(`Action: ${message}`, '| All scores reset.');
             updateLastUpdate(historyLog[historyLog.length - 1]);
             updateAllScores();
+            renderScoreChart();
 
             document.getElementById('undoBtn').disabled = true;
             localStorage.removeItem('guardBoardGameState');
@@ -837,18 +1025,21 @@
             if (!scoreElem) return;
             scoreElem.addEventListener('click', () => {
                 const playerName = document.getElementById(`nameLabel${player}`).textContent;
+                const oldScore = scores[player];
                 let newScore = prompt(`Enter new score for ${playerName}:`, scores[player]);
                 if (newScore === null) return;
                 newScore = newScore.trim();
                 if (/^-?\d+$/.test(newScore)) {
-                    const message = `${playerName}'s score manually set to ${newScore}.`;
-                    scores[player] = parseInt(newScore);
+                    const parsedNewScore = parseInt(newScore);
+                    const message = `${playerName}'s score manually set to ${parsedNewScore} (${oldScore} → ${parsedNewScore}).`;
+                    scores[player] = parsedNewScore;
                     logState(message);
                     updateLastUpdate(historyLog[historyLog.length - 1]);
                     console.log(`Action: ${message}`, '| Scores After:', scores);
                     updateAllScores();
                     updateSpecialActionButtons();
                     saveGameState();
+                    renderScoreChart();
                 } else {
                     alert("Please enter a valid integer number.");
                 }
@@ -868,17 +1059,24 @@
                 historyLog.pop();
                 scoreLog.pop();
                 orderLog.pop();
+                headToHeadLog.pop();
+                snookLog.pop();
 
                 const previousScores = scoreLog[scoreLog.length - 1];
                 const previousOrder = orderLog[orderLog.length - 1];
                 const previousMessage = historyLog[historyLog.length - 1];
+                const previousHeadToHead = headToHeadLog[headToHeadLog.length - 1];
+                const previousSnookStats = snookLog[snookLog.length - 1];
 
                 scores = JSON.parse(JSON.stringify(previousScores));
                 order = [...previousOrder];
+                headToHeadStats = JSON.parse(JSON.stringify(previousHeadToHead));
+                snookStats = JSON.parse(JSON.stringify(previousSnookStats));
 
                 updateAllScores(undoneScores);
                 updateSpecialActionButtons();
                 updateLastUpdate(previousMessage);
+                renderScoreChart();
                 console.log("Undo successful. Reverted to previous state:", {
                     scores,
                     order
@@ -899,7 +1097,11 @@
                 isFourPlayers: isFourPlayers,
                 historyLog: historyLog,
                 scoreLog: scoreLog,
-                orderLog: orderLog
+                orderLog: orderLog,
+                headToHeadStats: headToHeadStats,
+                headToHeadLog: headToHeadLog,
+                snookStats: snookStats,
+                snookLog: snookLog
             };
             // Save player names separately as they are in the DOM
             for (let i = 1; i <= (isFourPlayers ? 4 : 3); i++) {
@@ -923,6 +1125,10 @@
                 historyLog = gameState.historyLog || [];
                 scoreLog = gameState.scoreLog || [];
                 orderLog = gameState.orderLog || [];
+                headToHeadStats = gameState.headToHeadStats || {};
+                headToHeadLog = gameState.headToHeadLog || [];
+                snookStats = gameState.snookStats || {};
+                snookLog = gameState.snookLog || [];
 
                 // Recreate player cards based on loaded state
                 const scoreboard = document.getElementById("scoreboard");
@@ -950,6 +1156,7 @@
                 updateAllScores();
                 updateRoundOrder();
                 updateSpecialActionButtons();
+                renderScoreChart();
                 if (historyLog.length > 0) {
                     updateLastUpdate(historyLog[historyLog.length - 1]);
                 } else {
@@ -968,6 +1175,7 @@
             document.getElementById('undoBtn').addEventListener('click', undoLastAction);
             document.getElementById('lastUpdate').addEventListener('click', showGameLog);
             document.querySelector('.reset').addEventListener('click', confirmReset);
+            document.getElementById('exportChartBtn').addEventListener('click', exportChart);
             window.addEventListener('resize', checkRoundOrderOverflow);
 
             if (!loadGameState()) {
@@ -986,6 +1194,7 @@
             updateRoundOrder();
             updateSpecialActionButtons();
             checkRoundOrderOverflow();
+            renderScoreChart();
         }
 
         function showConfirmation(message, onConfirm) {
@@ -1032,41 +1241,112 @@
             // Calculate stats
             let racksPlayed = 0;
             const playerStats = {};
-            for (let i = 1; i <= (isFourPlayers ? 4 : 3); i++) {
+            const players = isFourPlayers ? [1, 2, 3, 4] : [1, 2, 3];
+            players.forEach(i => {
                 playerStats[i] = {
                     wins: 0,
                     fouls: 0,
-                    bcgb: 0
+                    bc: 0,
+                    gb: 0,
+                    bnc: 0
                 };
-            }
+            });
+
 
             historyLog.forEach(entry => {
                 const text = entry.text.toLowerCase();
-                if (text.includes('won') || text.includes('broke clear') || text.includes('golden break')) {
+                if (text.includes('won') || text.includes('broke clear') || text.includes('golden break') || text.includes('break-and-combi') || text.includes('dry clear')) {
                     racksPlayed++;
                 }
 
-                for (let i = 1; i <= (isFourPlayers ? 4 : 3); i++) {
+                players.forEach(i => {
                     const playerName = document.getElementById(`nameLabel${i}`).textContent.toLowerCase();
                     if (text.startsWith(playerName)) {
-                        if (text.includes('won')) playerStats[i].wins++;
+                        if (text.includes('won') || text.includes('dry clear')) playerStats[i].wins++;
                         if (text.includes('fouled')) playerStats[i].fouls++;
-                        if (text.includes('broke clear') || text.includes('golden break')) playerStats[i].bcgb++;
+                        if (text.includes('broke clear')) playerStats[i].bc++;
+                        if (text.includes('golden break')) playerStats[i].gb++;
+                        if (text.includes('break-and-combi')) playerStats[i].bnc++;
                     }
-                }
+                });
             });
 
             // Build content string
             let content = `<h3>Game Summary</h3>`;
             content += `<p><b>Racks Played:</b> ${racksPlayed}</p>`;
             content += '<ul>';
-            for (let i = 1; i <= (isFourPlayers ? 4 : 3); i++) {
+            players.forEach(i => {
                 const playerName = document.getElementById(`nameLabel${i}`).textContent;
                 const stats = playerStats[i];
-                content += `<li><b>${playerName}:</b> ${stats.wins} Wins, ${stats.fouls} Fouls, ${stats.bcgb} BC/GB</li>`;
-            }
+                content += `<li><b>${playerName}:</b> ${stats.wins} Wins, ${stats.fouls} Fouls, ${stats.bc} Break Clear, ${stats.gb} Golden Break, ${stats.bnc} Break&Combi</li>`;
+            });
             content += '</ul>';
             content += '<hr>';
+
+            // Head-to-Head Table
+            content += '<h3>Head-to-Head Wins</h3>';
+            const playerNames = players.map(p => document.getElementById(`nameLabel${p}`).textContent);
+
+            content += `<style>
+                .h2h-table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
+                .h2h-table th, .h2h-table td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+                .h2h-table th { background-color: #f2f2f2; }
+                .h2h-table .winner-col { background-color: #e8f5e9; font-weight: bold; }
+                .h2h-table .loser-header { background-color: #fbe9e7; }
+                .h2h-table .diagonal-cell { background-color: #e0e0e0; }
+            </style>`;
+
+            content += '<table class="h2h-table">';
+            // Header row
+            content += '<tr><th>↓ Winner / Loser →</th>';
+            playerNames.forEach(name => {
+                content += `<th class="loser-header">${name}</th>`;
+            });
+            content += '</tr>';
+
+            // Data rows
+            players.forEach((winnerId, rowIndex) => {
+                content += '<tr>';
+                content += `<td class="winner-col">${playerNames[rowIndex]}</td>`; // Winner name column
+                players.forEach((loserId, colIndex) => {
+                    if (winnerId === loserId) {
+                        content += '<td class="diagonal-cell"></td>'; // Cell for player vs themselves
+                    } else {
+                        const wins = (headToHeadStats[winnerId] && headToHeadStats[winnerId][loserId]) ? headToHeadStats[winnerId][loserId] : 0;
+                        content += `<td>${wins}</td>`;
+                    }
+                });
+                content += '</tr>';
+            });
+            content += '</table>';
+
+            // Snooks Summary Table
+            content += '<h3>Snooks Summary</h3>';
+            content += '<table class="h2h-table">';
+            // Header row
+            content += '<tr><th>↓ Snooker / Snookered →</th>';
+            playerNames.forEach(name => {
+                content += `<th class="loser-header">${name}</th>`;
+            });
+            content += '</tr>';
+
+            // Data rows
+            players.forEach((snookerId, rowIndex) => {
+                content += '<tr>';
+                content += `<td class="winner-col">${playerNames[rowIndex]}</td>`; // Snooker name column
+                players.forEach((snookeredId, colIndex) => {
+                    if (snookerId === snookeredId) {
+                        content += '<td class="diagonal-cell"></td>';
+                    } else {
+                        const snooks = (snookStats[snookerId] && snookStats[snookerId][snookeredId]) ? snookStats[snookerId][snookeredId] : 0;
+                        content += `<td>${snooks}</td>`;
+                    }
+                });
+                content += '</tr>';
+            });
+            content += '</table>';
+
+
             content += '<h3>Action History</h3>';
             content += '<ul>';
             historyLog.forEach(entry => {
@@ -1148,6 +1428,104 @@
 
                 span.addEventListener('animationend', () => span.remove());
             }
+        }
+
+
+        function exportChart() {
+            const canvas = document.getElementById('scoreChart');
+            // Create a temporary canvas to draw a white background
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = canvas.width;
+            tempCanvas.height = canvas.height;
+            const tempCtx = tempCanvas.getContext('2d');
+            
+            // Fill the background with white
+            tempCtx.fillStyle = '#FFFFFF';
+            tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+            
+            // Draw the original chart on top
+            tempCtx.drawImage(canvas, 0, 0);
+
+            // Convert to JPG and trigger download
+            const image = tempCanvas.toDataURL('image/jpeg', 1.0);
+            const link = document.createElement('a');
+            link.href = image;
+            link.download = 'score-chart.jpg';
+            link.click();
+        }
+
+        function renderScoreChart() {
+            const ctx = document.getElementById('scoreChart').getContext('2d');
+            const players = isFourPlayers ? [1, 2, 3, 4] : [1, 2, 3];
+            const playerNames = players.map(p => document.getElementById(`nameLabel${p}`).textContent);
+            const playerColors = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0'];
+
+            const datasets = players.map((player, index) => {
+                return {
+                    label: playerNames[index],
+                    data: scoreLog.map(scores => scores[player] !== undefined ? scores[player] : null),
+                    borderColor: playerColors[index],
+                    backgroundColor: playerColors[index] + '33', // semi-transparent fill
+                    fill: false,
+                    tension: 0.1
+                };
+            });
+
+            const labels = scoreLog.map((_, index) => `Turn ${index}`);
+
+            if (scoreChart) {
+                scoreChart.destroy();
+            }
+
+            // Dynamically set chart sizer width
+            const sizer = document.getElementById('chart-sizer');
+            const container = document.querySelector('.chart-container');
+            
+            const containerStyles = window.getComputedStyle(container);
+            const containerPadding = parseFloat(containerStyles.paddingLeft) + parseFloat(containerStyles.paddingRight);
+            const availableWidth = container.clientWidth - containerPadding;
+
+            const turnCount = scoreLog.length;
+            const calculatedWidth = turnCount * 50; // 50px per turn
+
+            const newWidth = Math.max(availableWidth, calculatedWidth);
+            sizer.style.width = `${newWidth}px`;
+
+
+            scoreChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Turn Number'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Score'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            align: 'start'
+                        },
+                        title: {
+                            display: false
+                        }
+                    }
+                }
+            });
         }
 
 
