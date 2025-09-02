@@ -51,6 +51,22 @@
         .right-buttons {
             display: flex;
             gap: 0.5rem;
+            align-items: center;
+        }
+
+        .help-btn {
+            background-color: #4a90e2;
+            border-radius: 50%;
+            width: 1.8rem;
+            height: 1.8rem;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            line-height: 1;
         }
 
         .right-buttons button {
@@ -495,6 +511,42 @@
             position: relative;
             height: 300px;
         }
+
+        .special-win-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .special-win-grid button {
+            padding: 1.2rem 0.5rem;
+            font-size: 1.1rem;
+            font-weight: bold;
+            line-height: 1.3;
+        }
+
+        .special-win-grid button small {
+            font-size: 0.8rem;
+            font-weight: normal;
+            margin-top: 0.25rem;
+            opacity: 0.9;
+        }
+
+        .log-win { color: inherit; }
+        .log-major-win { color: #28a745; font-weight: bold; }
+        .log-foul { color: #dc3545; }
+        .log-admin { color: #6c757d; font-style: italic; }
+
+        #helpModal .dummy-btn {
+            display: inline-block;
+            padding: 0.1rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            color: white;
+            margin: 0 0.2rem;
+            border: 1px solid rgba(0,0,0,0.2);
+        }
     </style>
 </head>
 
@@ -502,6 +554,7 @@
     <div class="top-menu">
         <div id="branding" class="branding">Guard.</div>
         <div class="right-buttons">
+            <button class="help-btn" onclick="showHelpModal()">?</button>
             <button id="togglePlayersBtn">3 Players</button>
             <button id="undoBtn">Undo</button>
             <button class="reset" onclick="confirmReset()">Reset</button>
@@ -543,15 +596,45 @@
         </div>
     </div>
 
+    <div id="helpModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h3>How to Play Guard</h3>
+            
+            <h4>🎱 The Game</h4>
+            <p>Guard is a 3 or 4 player pool game where the goal is to score as many points as possible and control the <strong>Shooter (P1)</strong> position. The total score always remains zero.</p>
+            <ul>
+                <li>✅ <strong>Normal Win:</strong> The <strong>active player</strong> wins against the <strong>previous player</strong>. They take points, and the turn order resets, making the winner the new P1. Refer to the Round Order bar for the new sequence. Use the <span class="dummy-btn win">Win</span> button.</li>
+                <li>❌ <strong>Foul:</strong> The <strong>active player</strong> fouls, giving points to the <strong>previous player</strong>. The incoming player gets ball-in-hand and must not play a snooker. A foul on this shot is a foul on them! Use the <span class="dummy-btn foul">Foul!</span> button.</li>
+                <li>✨ <strong>Special Wins:</strong> Use the <span class="dummy-btn bc">Win++</span> button for powerful, position-specific moves.
+                    <ul>
+                        <li><strong>As P1 (Shooter):</strong> You can score against all players with a <strong>Break Clear</strong> (aka Break and Run), <strong>Golden Break</strong>, or <strong>Break & Combi</strong> (aka Break and combi the game ball(9 or 10)). These do not change the turn order.</li>
+                        <li><strong>As P2 (Challenger):</strong> If P1 fails the break, you can <strong>Clear Dry Break</strong> to steal the win from P1. This makes you the new P1. Refer to the Round Order bar for the new sequence.</li>
+                    </ul>
+                </li>
+            </ul>
+
+            <h4>📱 Using the App</h4>
+            <ul>
+                <li>🧑‍🤝‍🧑 <strong>3/4 Players:</strong> Tap this button in the top menu to switch between 3 and 4 player mode. <strong>Warning:</strong> This will reset the game and cannot be done midway.</li>
+                <li>🔢 <strong>Edit Point Values:</strong> Tap the number boxes in the top bar (e.g., Foul: 1, Win: 3, BC: 5) to set custom point values for the game.</li>
+                <li>✏️ <strong>Edit Names:</strong> Tap on any "Player X" name to type a new one.</li>
+                <li>✍️ <strong>Manual Score Edit:</strong> Tap directly on a player's score to enter a new value.</li>
+                <li>📊 <strong>Game Summary:</strong> Tap the "Last Update" bar at the bottom to see detailed stats, head-to-head records, and the full action history.</li>
+                <li>📈 <strong>Timeline:</strong> The chart tracks score changes over time. You can scroll it horizontally and export it as a JPG.</li>
+            </ul>
+        </div>
+    </div>
+
     <div id="specialWinModal" class="modal">
         <div class="modal-content">
             <span class="close-button">&times;</span>
             <h3>Special Wins</h3>
-            <div class="action-buttons">
-                <button id="sw-bc" class="bc">Break Clear</button>
-                <button id="sw-gb" class="bc">Golden Break</button>
-                <button id="sw-bnc" class="win">Break-and-Combi</button>
-                <button id="sw-dc" class="win">Dry Clear</button>
+            <div class="special-win-grid">
+                <button id="sw-bc" class="bc">Break Clear<br><small>BC points vs All</small></button>
+                <button id="sw-gb" class="bc">Golden Break<br><small>Win points vs All</small></button>
+                <button id="sw-bnc" class="win">Break-and-Combi<br><small>Win points vs All</small></button>
+                <button id="sw-dc" class="win">Clear Dry Break<br><small>BC points vs P1</small></button>
             </div>
         </div>
     </div>
@@ -676,52 +759,27 @@
             marqueeContentElem.textContent = fullText;
             roundOrderElem.classList.remove('marquee'); // Always remove first to re-evaluate
 
-            // Calculate the width of the original text
-            const originalTextWidth = marqueeContentElem.scrollWidth;
+            // Defer the rest of the execution to allow the DOM to update
+            setTimeout(() => {
+                // Calculate the width of the original text
+                const originalTextWidth = marqueeContentElem.scrollWidth;
 
-            // Check if content overflows
-            if (originalTextWidth > roundOrderElem.clientWidth) {
-                // Set the CSS variable for animation
-                roundOrderElem.style.setProperty('--marquee-width', `-${originalTextWidth}px`);
-                // Duplicate the content for seamless marquee with a separator
-                marqueeContentElem.innerHTML = `${fullText}<span style="display:inline-block; width: 2rem;"></span>${fullText}`;
-                roundOrderElem.classList.add('marquee');
-            } else {
-                // If it doesn't overflow, ensure only original text is present
-                marqueeContentElem.textContent = fullText;
-                roundOrderElem.classList.remove('marquee');
-                roundOrderElem.style.removeProperty('--marquee-width'); // Clean up CSS variable
-            }
+                // Check if content overflows
+                if (originalTextWidth > roundOrderElem.clientWidth) {
+                    // Set the CSS variable for animation
+                    roundOrderElem.style.setProperty('--marquee-width', `-${originalTextWidth}px`);
+                    // Duplicate the content for seamless marquee with a separator
+                    marqueeContentElem.innerHTML = `${fullText}<span style="display:inline-block; width: 2rem;"></span>${fullText}`;
+                    roundOrderElem.classList.add('marquee');
+                } else {
+                    // If it doesn't overflow, ensure only original text is present
+                    marqueeContentElem.textContent = fullText;
+                    roundOrderElem.classList.remove('marquee');
+                    roundOrderElem.style.removeProperty('--marquee-width'); // Clean up CSS variable
+                }
 
-            triggerFlash('roundOrder');
-        }
-
-        function checkRoundOrderOverflow() {
-            const roundOrderElem = document.getElementById('roundOrder');
-            const marqueeContentElem = roundOrderElem.querySelector('.marquee-content');
-            // Get original text from the first span if duplicated, otherwise from textContent
-            const fullText = marqueeContentElem.querySelector('span') ? marqueeContentElem.querySelector('span').textContent : marqueeContentElem.textContent;
-
-            // Temporarily set content to original to measure its true width
-            marqueeContentElem.textContent = fullText;
-            roundOrderElem.classList.remove('marquee'); // Always remove first to re-evaluate
-
-            // Calculate the width of the original text
-            const originalTextWidth = marqueeContentElem.scrollWidth;
-
-            // Check if content overflows
-            if (originalTextWidth > roundOrderElem.clientWidth) {
-                // Set the CSS variable for animation
-                roundOrderElem.style.setProperty('--marquee-width', `-${originalTextWidth}px`);
-                // Duplicate the content for seamless marquee with a separator
-                marqueeContentElem.innerHTML = `${fullText}<span style="display:inline-block; width: 2rem;"></span>${fullText}`;
-                roundOrderElem.classList.add('marquee');
-            } else {
-                // If it doesn't overflow, ensure only original text is present
-                marqueeContentElem.textContent = fullText;
-                roundOrderElem.classList.remove('marquee');
-                roundOrderElem.style.removeProperty('--marquee-width'); // Clean up CSS variable
-            }
+                triggerFlash('roundOrder');
+            }, 0);
         }
 
         function getPointsFor(action) {
@@ -964,6 +1022,22 @@
             };
         }
 
+        function showHelpModal() {
+            const modal = document.getElementById('helpModal');
+            modal.style.display = 'block';
+
+            const closeModal = () => {
+                modal.style.display = 'none';
+            };
+
+            modal.querySelector('.close-button').onclick = closeModal;
+            window.onclick = (event) => {
+                if (event.target == modal) {
+                    closeModal();
+                }
+            };
+        }
+
         function confirmReset() {
             showConfirmation("Are you sure you want to reset the game? This action cannot be undone.", resetScores);
         }
@@ -1170,13 +1244,25 @@
             return false;
         }
 
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
         function init() {
             document.getElementById('togglePlayersBtn').addEventListener('click', togglePlayersMode);
             document.getElementById('undoBtn').addEventListener('click', undoLastAction);
             document.getElementById('lastUpdate').addEventListener('click', showGameLog);
             document.querySelector('.reset').addEventListener('click', confirmReset);
             document.getElementById('exportChartBtn').addEventListener('click', exportChart);
-            window.addEventListener('resize', checkRoundOrderOverflow);
+            window.addEventListener('resize', debounce(updateRoundOrder, 250));
 
             if (!loadGameState()) {
                 // If no saved state, initialize default 3 players
@@ -1193,7 +1279,6 @@
 
             updateRoundOrder();
             updateSpecialActionButtons();
-            checkRoundOrderOverflow();
             renderScoreChart();
         }
 
@@ -1262,7 +1347,7 @@
                 players.forEach(i => {
                     const playerName = document.getElementById(`nameLabel${i}`).textContent.toLowerCase();
                     if (text.startsWith(playerName)) {
-                        if (text.includes('won') || text.includes('dry clear')) playerStats[i].wins++;
+                        if (text.includes('won') || text.includes('cleared a dry break')) playerStats[i].wins++;
                         if (text.includes('fouled')) playerStats[i].fouls++;
                         if (text.includes('broke clear')) playerStats[i].bc++;
                         if (text.includes('golden break')) playerStats[i].gb++;
@@ -1284,73 +1369,129 @@
             content += '<hr>';
 
             // Head-to-Head Table
-            content += '<h3>Head-to-Head</h3>';
+            content += '<h3>Head-to-Head Wins</h3>';
             const playerNames = players.map(p => document.getElementById(`nameLabel${p}`).textContent);
 
             content += `<style>
-                .h2h-table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
+                .h2h-table-wrapper { overflow-x: auto; margin-bottom: 1rem; }
+                .h2h-table { width: 100%; border-collapse: collapse; min-width: 400px; }
                 .h2h-table th, .h2h-table td { border: 1px solid #ddd; padding: 8px; text-align: center; }
                 .h2h-table th { background-color: #f2f2f2; }
                 .h2h-table .winner-col { background-color: #e8f5e9; font-weight: bold; }
                 .h2h-table .loser-header { background-color: #fbe9e7; }
                 .h2h-table .diagonal-cell { background-color: #e0e0e0; }
+                .h2h-table .total-cell { font-weight: bold; background-color: #e9ecef; }
             </style>`;
 
+            // --- H2H Wins Table ---
+            const h2hColumnTotals = players.reduce((acc, p) => ({ ...acc, [p]: 0 }), {});
+            let h2hGrandTotal = 0;
+
+            content += '<div class="h2h-table-wrapper">';
             content += '<table class="h2h-table">';
             // Header row
-            content += '<tr><th>↓ Win / Lose →</th>';
+            content += '<tr><th>Win / Lose</th>';
             playerNames.forEach(name => {
                 content += `<th class="loser-header">${name}</th>`;
             });
-            content += '</tr>';
+            content += '<th class="total-cell">Total Wins</th></tr>';
 
             // Data rows
             players.forEach((winnerId, rowIndex) => {
+                let rowTotal = 0;
                 content += '<tr>';
-                content += `<td class="winner-col">${playerNames[rowIndex]}</td>`; // Winner name column
-                players.forEach((loserId, colIndex) => {
+                content += `<td class="winner-col">${playerNames[rowIndex]}</td>`;
+                players.forEach((loserId) => {
                     if (winnerId === loserId) {
-                        content += '<td class="diagonal-cell"></td>'; // Cell for player vs themselves
+                        content += '<td class="diagonal-cell"></td>';
                     } else {
                         const wins = (headToHeadStats[winnerId] && headToHeadStats[winnerId][loserId]) ? headToHeadStats[winnerId][loserId] : 0;
+                        rowTotal += wins;
+                        h2hColumnTotals[loserId] += wins;
+                        h2hGrandTotal += wins;
                         content += `<td>${wins}</td>`;
                     }
                 });
+                content += `<td class="total-cell">${rowTotal}</td>`;
                 content += '</tr>';
             });
-            content += '</table>';
 
-            // Snooks Summary Table
-            content += '<h3>Fouls</h3>';
+            // Total Losses Row
+            content += '<tr><td class="total-cell">Total Losses</td>';
+            players.forEach(p => {
+                content += `<td class="total-cell">${h2hColumnTotals[p]}</td>`;
+            });
+            content += `<td class="total-cell">${h2hGrandTotal}</td></tr>`;
+            content += '</table></div>';
+
+
+            // --- Snooks Summary Table ---
+            const snookColumnTotals = players.reduce((acc, p) => ({ ...acc, [p]: 0 }), {});
+            let snookGrandTotal = 0;
+
+            content += '<h3>Snooks Summary</h3>';
+            content += '<div class="h2h-table-wrapper">';
             content += '<table class="h2h-table">';
             // Header row
-            content += '<tr><th>↓ Snooked / Fouled To →</th>';
+            content += '<tr><th>Snook / Fouled To</th>';
             playerNames.forEach(name => {
                 content += `<th class="loser-header">${name}</th>`;
             });
-            content += '</tr>';
+            content += '<th class="total-cell">Total Given</th></tr>';
 
             // Data rows
             players.forEach((snookerId, rowIndex) => {
+                let rowTotal = 0;
                 content += '<tr>';
-                content += `<td class="winner-col">${playerNames[rowIndex]}</td>`; // Snooker name column
-                players.forEach((snookeredId, colIndex) => {
+                content += `<td class="winner-col">${playerNames[rowIndex]}</td>`;
+                players.forEach((snookeredId) => {
                     if (snookerId === snookeredId) {
                         content += '<td class="diagonal-cell"></td>';
                     } else {
                         const snooks = (snookStats[snookerId] && snookStats[snookerId][snookeredId]) ? snookStats[snookerId][snookeredId] : 0;
+                        rowTotal += snooks;
+                        snookColumnTotals[snookeredId] += snooks;
+                        snookGrandTotal += snooks;
                         content += `<td>${snooks}</td>`;
                     }
                 });
+                content += `<td class="total-cell">${rowTotal}</td>`;
                 content += '</tr>';
             });
-            content += '</table>';
+
+            // Total Received Row
+            content += '<tr><td class="total-cell">Total Received</td>';
+            players.forEach(p => {
+                content += `<td class="total-cell">${snookColumnTotals[p]}</td>`;
+            });
+            content += `<td class="total-cell">${snookGrandTotal}</td></tr>`;
+            content += '</table></div>';
 
 
             content += '<h3>Action History</h3>';
             content += '<ul>';
             historyLog.forEach(entry => {
-                content += `<li>(${formatTime(entry.time)}) ${entry.text}</li>`;
+                const time = formatTime(entry.time);
+                const text = entry.text;
+                const lowerText = text.toLowerCase();
+                let logClass = '';
+                let icon = '';
+
+                if (lowerText.includes('broke clear') || lowerText.includes('golden break') || lowerText.includes('break-and-combi')) {
+                    logClass = 'log-major-win';
+                    icon = '✨';
+                } else if (lowerText.includes('won') || lowerText.includes('cleared a dry break')) {
+                    logClass = 'log-win';
+                    icon = '🏆';
+                } else if (lowerText.includes('fouled')) {
+                    logClass = 'log-foul';
+                    icon = '🔴';
+                } else if (lowerText.includes('manually set') || lowerText.includes('game reset')) {
+                    logClass = 'log-admin';
+                    icon = '✏️';
+                }
+
+                content += `<li><span class="${logClass}">${icon} (${time}) ${text}</span></li>`;
             });
             content += '</ul>';
 
@@ -1518,7 +1659,10 @@
                     plugins: {
                         legend: {
                             position: 'top',
-                            align: 'start'
+                            align: 'start',
+                            labels: {
+                                usePointStyle: true,
+                            }
                         },
                         title: {
                             display: false
@@ -1531,7 +1675,7 @@
 
         init();
     </script>
-    <footer>© 2025 Guard Scoreboard. <br /> <i>for the Degens. Made with Kopi Peng ☕. </i></footer>
+    <footer>© @jingloon 2025 Guard Scoreboard. <br /> <i>for the Degens. Made with Kopi Peng ☕. </i></footer>
 </body>
 
 </html>
