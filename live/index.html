@@ -1,0 +1,2116 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GUARD BOARD</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Firebase SDKs (Compat version for simple HTML usage) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+            margin: 0;
+            padding: 5.5rem 0 3.6rem;
+            /* top + bottom padding for fixed elements */
+            text-align: center;
+        }
+
+        footer {
+            text-align: center;
+            font-size: 0.9rem;
+            color: #777;
+            padding: 1rem 0;
+            border-top: 1px solid #ddd;
+            margin-top: 1rem;
+        }
+
+        .top-menu {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3.5rem;
+            background: #0d1321;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 1rem;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            font-weight: bold;
+            font-size: 1.4rem;
+            user-select: none;
+        }
+
+        .branding {
+            user-select: none;
+            color: white;
+        }
+
+        .right-buttons {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .help-btn {
+            background-color: #4a90e2;
+            border-radius: 50%;
+            width: 1.8rem;
+            height: 1.8rem;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .live-btn {
+            background: #2b2f38;
+            border: 1px solid #ff6f6f;
+            border-radius: 999px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            height: 1.8rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            color: #ffdede;
+        }
+
+        .live-btn .live-dot {
+            width: 0.8rem;
+            height: 0.8rem;
+            background: #e04848;
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 0 0 rgba(224, 72, 72, 0.6);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+        }
+
+        .live-btn.live-on {
+            background: linear-gradient(120deg, #9b1c1c, #e04848);
+            border-color: #ff7676;
+            color: white;
+            animation: pulse-record 1.4s infinite;
+        }
+
+        .live-btn.live-on .live-dot {
+            background: #ffb3b3;
+            box-shadow: 0 0 0 0 rgba(255, 153, 153, 0.8);
+        }
+
+        @keyframes pulse-record {
+            0% {
+                box-shadow: 0 0 0 0 rgba(224, 72, 72, 0.7);
+            }
+
+            70% {
+                box-shadow: 0 0 0 12px rgba(224, 72, 72, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(224, 72, 72, 0);
+            }
+        }
+
+        .right-buttons button {
+            padding: 0.5rem 1rem;
+            font-size: 0.7rem;
+            border: none;
+            border-radius: 5px;
+            background-color: #8c9399;
+            color: white;
+            cursor: pointer;
+        }
+
+        .right-buttons .reset {
+            background-color: #da3226;
+        }
+
+        .right-buttons #undoBtn {
+            background-color: #4a0071;
+            /* Dark Purple */
+        }
+
+        .right-buttons #undoBtn:disabled {
+            background: #555555;
+            color: #666;
+            border: none;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        /* Scoring fields fixed below menu */
+        .scoring-rules {
+            position: absolute;
+            top: 3.5rem;
+            left: 0;
+            right: 0;
+            background: #d8d8d8;
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            padding: 0.7rem 1rem;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            z-index: 999;
+            user-select: none;
+            font-weight: bold;
+            font-size: 1rem;
+        }
+
+        .scoring-rules div {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .scoring-rules input {
+            width: 50px;
+            text-align: center;
+            padding: 0.2rem 0.3rem;
+            font-size: 1rem;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+
+        /* Bottom fixed container for round order and last update */
+        .bottom-fixed-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+            box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        #roundOrder {
+            background: #7fc6a4;
+            font-size: 1rem;
+            font-weight: bold;
+            padding: 0.4rem 1rem;
+            user-select: none;
+            overflow: hidden; /* Hide overflow, but allow content inside to scroll */
+            white-space: nowrap; /* Ensure content stays on one line */
+        }
+
+        .marquee-content {
+            display: inline-block;
+            white-space: nowrap;
+        }
+
+        /* Marquee effect for .marquee-content when text overflows */
+        #roundOrder.marquee .marquee-content {
+            animation: marquee 20s linear infinite; /* Slower duration */
+        }
+
+        @keyframes marquee {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(var(--marquee-width)); }
+        }
+
+        #lastUpdate {
+            background: #d8d8d8;
+            color: black;
+            font-size: 1rem;
+            padding: 0.4rem 1rem;
+            user-select: none;
+            text-align: center;
+            
+            overflow: hidden; /* Hide overflow */
+            text-overflow: ellipsis; /* Add ellipsis for overflowed text */
+            cursor: pointer;
+        }
+
+        .flash-sweep::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to right,
+                    transparent 0%,
+                    rgba(255, 255, 255, 0.6) 50%,
+                    transparent 100%);
+            transform: translateX(-100%);
+            animation: lens-flare 0.75s ease-out;
+        }
+
+        @keyframes lens-flare {
+            from {
+                transform: translateX(-100%);
+            }
+
+            to {
+                transform: translateX(100%);
+            }
+        }
+
+
+        .scoreboard {
+            margin-top: 3.5rem;
+            /* space for fixed menu + scoring fields */
+            margin-bottom: 3.6rem;
+            /* space for round order */
+            display: grid;
+            gap: 1rem;
+            width: 100%;
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
+            padding: 0 1rem;
+            box-sizing: border-box;
+        }
+
+        /* 3 players: 3 columns x 1 row */
+        .scoreboard.three-players {
+            grid-template-columns: repeat(2, 1fr);
+            grid-auto-rows: minmax(150px, auto);
+        }
+
+        /* 4 players: 2 columns x 2 rows */
+        .scoreboard.four-players {
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-rows: repeat(2, minmax(150px, auto));
+        }
+
+        .player-card {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+        }
+
+        .player-card.positive {
+            border: 2px solid rgb(22, 168, 22);
+        }
+
+        .player-card.negative {
+            border: 2px solid rgb(133, 4, 4);
+        }
+
+        .player-card .action-buttons {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .player-card .action-buttons button {
+            min-width: 50px;
+            padding: 0.6rem 0.6rem;
+            font-size: 1rem;
+            border-radius: 4px;
+            /* Let width be automatic based on content */
+            flex-grow: 0;
+            flex-shrink: 0;
+        }
+
+        .score {
+            font-size: 2.2rem;
+            margin: 1rem 0;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .score-increase {
+            animation: score-increase-animation 3s ease;
+        }
+
+        .score-decrease {
+            animation: score-decrease-animation 3s ease;
+        }
+
+        @keyframes score-increase-animation {
+            0% {
+                color: #4CAF50;
+                transform: scale(1.2);
+            }
+
+            /* Green */
+            100% {
+                color: black;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes score-decrease-animation {
+            0% {
+                color: #da3226;
+                transform: scale(1.2);
+            }
+
+            /* Red */
+            100% {
+                color: black;
+                transform: scale(1);
+            }
+        }
+
+
+        button {
+            margin: 0.2rem;
+            padding: 0.5rem 1rem;
+            font-size: 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .win {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .win:disabled {
+            background: #555555;
+            color: #666;
+            border: none;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .foul {
+            background-color: #da3226;
+            color: white;
+        }
+
+        .bc {
+            background: linear-gradient(45deg, #FFD700, #FFC300, #FFB700);
+            color: white;
+            border: 1px solid #b38600;
+            box-shadow: 0 0 8px #FFD700, inset 0 1px 1px rgba(255, 255, 255, 0.6);
+        }
+
+        .bc-no-glow {
+            background: linear-gradient(45deg, #FFD700, #FFC300, #FFB700);
+            color: white;
+            border: 1px solid #b38600;
+        }
+
+        .bc:disabled, .bc-no-glow:disabled {
+            background: #555555;
+            color: #666;
+            border: none;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .name-label {
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            user-select: none;
+            min-width: 100px;
+            text-align: center;
+        }
+
+        .name-input {
+            font-size: 1.2rem;
+            padding: 0.2rem 0.5rem;
+            width: 100%;
+            box-sizing: border-box;
+            text-align: center;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+
+
+        @keyframes fall {
+            0% {
+                transform: translateY(-50px) rotate(0deg);
+                opacity: 1;
+            }
+
+            100% {
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        .leaf {
+            position: fixed;
+            top: 0;
+            pointer-events: none;
+            user-select: none;
+            font-size: 24px;
+            animation-name: fall;
+            animation-timing-function: linear;
+            animation-fill-mode: forwards;
+            z-index: 9999;
+        }
+
+        .firework-piece {
+            position: absolute;
+            font-size: 24px;
+            pointer-events: none;
+            animation: explode 800ms ease-out forwards;
+            opacity: 0;
+            z-index: 9999;
+        }
+
+        @keyframes explode {
+            0% {
+                transform: translate(0, 0) scale(1);
+                opacity: 1;
+            }
+
+            100% {
+                transform: translate(var(--x), var(--y)) scale(0.5);
+                opacity: 0;
+            }
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 600px;
+            border-radius: 8px;
+            text-align: left;
+        }
+
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .modal-footer {
+            padding-top: 1rem;
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+        }
+
+        .modal-footer button {
+            padding: 0.6rem 1.2rem;
+            font-size: 1rem;
+            border-radius: 5px;
+            border: none;
+            color: white;
+        }
+
+        .modal-confirm-btn {
+            background-color: #4d9dbd;
+            /* Green */
+        }
+
+        .modal-cancel-btn {
+            background-color: #828282;
+            /* Red */
+        }
+
+        .chart-container {
+            width: 94%;
+            max-width: 1200px;
+            margin: 1rem auto 3.6rem;
+            padding: 1rem;
+            box-sizing: border-box;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .chart-wrapper {
+            position: relative;
+            overflow-x: auto;
+            padding-bottom: 1rem;
+        }
+
+        #scoreChart {
+            height: 100%;
+            width: 100%;
+        }
+
+        #chart-sizer {
+            position: relative;
+            height: 300px;
+        }
+
+        .special-win-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .special-win-grid button {
+            padding: 1.2rem 0.5rem;
+            font-size: 1.1rem;
+            font-weight: bold;
+            line-height: 1.3;
+        }
+
+        .special-win-grid button small {
+            font-size: 0.8rem;
+            font-weight: normal;
+            margin-top: 0.25rem;
+            opacity: 0.9;
+        }
+
+        .log-win { color: inherit; }
+        .log-major-win { color: #28a745; font-weight: bold; }
+        .log-foul { color: #dc3545; }
+        .log-admin { color: #6c757d; font-style: italic; }
+
+        #helpModal .dummy-btn {
+            display: inline-block;
+            padding: 0.1rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            color: white;
+            margin: 0 0.2rem;
+            border: 1px solid rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="top-menu">
+        <div id="branding" class="branding">Guard.</div>
+        <div class="right-buttons">
+            <button class="help-btn" onclick="showHelpModal()">?</button>
+            <button id="liveBtn" class="live-btn" title="Tap to start Live mode"><span class="live-dot"></span><span>Live</span></button>
+            <button id="togglePlayersBtn">3 Players</button>
+            <button id="undoBtn">Undo</button>
+            <button class="reset" onclick="confirmReset()">Reset</button>
+        </div>
+    </div>
+
+    <div class="scoring-rules">
+        <div>Foul: <input type="number" id="foulPoints" value="1" /></div>
+        <div>Win: <input type="number" id="winPoints" value="3" /></div>
+        <div>BC: <input type="number" id="bcPoints" value="5" /></div>
+    </div>
+
+    <div class="scoreboard three-players" id="scoreboard">
+        <!-- Player cards inserted here -->
+    </div>
+
+    <div class="chart-container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h3>Timeline</h3>
+            <button id="exportChartBtn">Export as JPG</button>
+        </div>
+        <div class="chart-wrapper">
+            <div id="chart-sizer">
+                <canvas id="scoreChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="bottom-fixed-container">
+        <div id="roundOrder"><span class="marquee-content">Round Order: Player 1 → Player 2 → Player 3</span></div>
+        <div id="lastUpdate"></div>
+    </div>
+
+    <div id="gameLogModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <div id="gameLogContent"></div>
+            <div class="modal-footer" id="gameLogFooter"></div>
+        </div>
+    </div>
+
+    <div id="liveModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h3>Live Mode</h3>
+            <p>📈📉 Scores will be updated live <i>(insecurely..)</i> to KM's scoreboard.</p>
+            <p><strong>Join Code:</strong> <span id="liveJoinCode">0000</span></p>
+            <p><strong>Game ID:</strong> <span id="liveGameId">#6969</span></p>
+        </div>
+    </div>
+
+    <div id="helpModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h3>How to Play Guard</h3>
+            
+            <h4>🎱 The Game</h4>
+            <p>Guard is a 3 or 4 player pool game where the goal is to score as many points as possible and control the <strong>Shooter (P1)</strong> position. The total score always remains zero.</p>
+            <ul>
+                <li>✅ <strong>Normal Win:</strong> The <strong>active player</strong> wins against the <strong>previous player</strong>. They take points, and the turn order resets, making the winner the new P1. Refer to the Round Order bar for the new sequence. Use the <span class="dummy-btn win">Win</span> button.</li>
+                <li>❌ <strong>Foul:</strong> The <strong>active player</strong> fouls, giving points to the <strong>previous player</strong>. The incoming player gets ball-in-hand and must not play a snooker. A foul on this shot is a foul on them! Use the <span class="dummy-btn foul">Foul!</span> button.</li>
+                <li>✨ <strong>Special Wins:</strong> Use the <span class="dummy-btn bc">Win++</span> button for powerful, position-specific moves.
+                    <ul>
+                        <li><strong>As P1 (Shooter):</strong> You can score against all players with a <strong>Break Clear</strong> (aka Break and Run), <strong>Golden Break</strong>, or <strong>Break & Combi</strong> (aka Break and combi the game ball(9 or 10)). These do not change the turn order.</li>
+                        <li><strong>As P2 (Challenger):</strong> If P1 fails the break, you can <strong>Clear Dry Break</strong> to steal the win from P1. This makes you the new P1. Refer to the Round Order bar for the new sequence.</li>
+                    </ul>
+                </li>
+            </ul>
+
+            <h4>📱 Using the App</h4>
+            <ul>
+                <li>🧑‍🤝‍🧑 <strong>3/4 Players:</strong> Tap this button in the top menu to switch between 3 and 4 player mode. <strong>Warning:</strong> This will reset the game and cannot be done midway.</li>
+                <li>🔢 <strong>Edit Point Values:</strong> Tap the number boxes in the top bar (e.g., Foul: 1, Win: 3, BC: 5) to set custom point values for the game.</li>
+                <li>✏️ <strong>Edit Names:</strong> Tap on any "Player X" name to type a new one.</li>
+                <li>✍️ <strong>Manual Score Edit:</strong> Tap directly on a player's score to enter a new value.</li>
+                <li>📊 <strong>Game Summary:</strong> Tap the "Last Update" bar at the bottom to see detailed stats, head-to-head records, and the full action history.</li>
+                <li>📈 <strong>Timeline:</strong> The chart tracks score changes over time. You can scroll it horizontally and export it as a JPG.</li>
+            </ul>
+        </div>
+    </div>
+
+    <div id="specialWinModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h3>Special Wins</h3>
+            <div class="special-win-grid">
+                <button id="sw-bc" class="bc">Break Clear<br><small>BC points vs All</small></button>
+                <button id="sw-gb" class="bc">Golden Break<br><small>Win points vs All</small></button>
+                <button id="sw-bnc" class="win">Break-and-Combi<br><small>Win points vs All</small></button>
+                <button id="sw-dc" class="win">Clear Dry Break<br><small>BC points vs P1</small></button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+
+        // disclaimer: i am just using already-leaked keys to KM's "free to use" Firebase backend...
+        // --- FIREBASE SETUP ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyC_jSYoQLlsYvyMkE4fZ4bHFz2fkE70shk",
+            authDomain: "guard-scoreboard.firebaseapp.com",
+            projectId: "guard-scoreboard",
+            storageBucket: "guard-scoreboard.firebasestorage.app",
+            messagingSenderId: "491028228431",
+            appId: "1:491028228431:web:4c92700d264f5b1aae3d3a",
+            measurementId: "G-5Z28C6N29L"
+        };
+
+        let db = null;
+        let firestoreDb = null;
+        let auth = null;
+        try {
+            firebase.initializeApp(firebaseConfig);
+            if (firebaseConfig.databaseURL) {
+                db = firebase.database();
+            }
+            if (firebase.firestore) {
+                firestoreDb = firebase.firestore();
+            }
+            if (firebase.auth) {
+                auth = firebase.auth();
+            }
+            console.log("Firebase initialized successfully.");
+        } catch (e) {
+            console.error("Error initializing Firebase:", e);
+        }
+
+        const APP_CHECK_SITE_KEY = '';
+
+        if (firebase.appCheck && APP_CHECK_SITE_KEY) {
+            try {
+                firebase.appCheck().activate(APP_CHECK_SITE_KEY, true);
+            } catch (e) {
+                console.warn('App Check init failed:', e);
+            }
+        } else if (firebase.appCheck && !APP_CHECK_SITE_KEY) {
+            console.warn('App Check skipped (set APP_CHECK_SITE_KEY to enable).');
+        }
+
+        function generateSessionId() {
+            const now = new Date();
+            const pad = (num) => num.toString().padStart(2, '0');
+            const day = pad(now.getDate());
+            const month = pad(now.getMonth() + 1);
+            const year = now.getFullYear().toString().slice(-2);
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let suffix = '';
+            for (let i = 0; i < 3; i++) {
+                suffix += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return `#JL${day}${month}${year}${suffix}`;
+        }
+
+        function generateJoinCode() {
+            return `JL${Math.floor(1000 + Math.random() * 9000)}`;
+        }
+
+        function normalizeJoinCode(value) {
+            const str = String(value || '').trim();
+            return /^JL\d{4}$/.test(str) ? str : generateJoinCode();
+        }
+
+        const existingClientId = localStorage.getItem('guard.clientId') || localStorage.getItem('guardBoardClientId');
+        if (!existingClientId) {
+            const fallbackId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+            const clientId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : fallbackId;
+            localStorage.setItem('guardBoardClientId', clientId);
+            localStorage.setItem('guard.clientId', clientId);
+        }
+
+        const liveShare = {
+            enabled: false,
+            docId: localStorage.getItem('guardBoardLiveDocId') || null,
+            ref: null,
+            lastWrittenHash: '',
+            clientId: localStorage.getItem('guard.clientId') || localStorage.getItem('guardBoardClientId'),
+            joinCode: normalizeJoinCode(localStorage.getItem('guardBoardJoinCode'))
+        };
+
+        localStorage.setItem('guardBoardJoinCode', liveShare.joinCode);
+
+        if (auth) {
+            auth.signInAnonymously().catch((e) => console.warn('Anonymous auth failed:', e));
+            auth.onAuthStateChanged((user) => {
+                if (!user) return;
+                try {
+                    localStorage.setItem('guard.clientId', user.uid);
+                    localStorage.setItem('guardBoardClientId', user.uid);
+                    liveShare.clientId = user.uid;
+                } catch {}
+            });
+        }
+
+        let scores = {};
+        let order = [1, 2, 3];
+        let isLiveMode = false;
+        let liveGameId = generateSessionId();
+        
+        // Get Game ID from URL (e.g., ?game=table1) or default to 'default'
+        const urlParams = new URLSearchParams(window.location.search);
+        const gameId = urlParams.get('game') || 'default';
+
+        let isFourPlayers = false;
+        let headToHeadStats = {};
+        let snookStats = {};
+
+        // Logs for Undo functionality
+        let historyLog = [];
+        let scoreLog = [];
+        let orderLog = [];
+        let headToHeadLog = [];
+        let snookLog = [];
+        let scoreChart;
+
+
+        function createPlayerCard(player) {
+            const card = document.createElement('div');
+            card.classList.add('player-card');
+            card.id = `playerCard${player}`;
+
+            // Name label with click-to-edit functionality
+            card.innerHTML = `
+        <div class="name-label" id="nameLabel${player}">Player ${player}</div>
+        <input class="name-input" id="nameInput${player}" style="display:none" />
+        <div class="score" id="score${player}">0</div>
+        <div class="action-buttons">
+            <button class="win" onclick="changeScore(${player}, 'win', this)">Win</button> 
+            <button class="foul" onclick="changeScore(${player}, 'foul', this)">Foul!</button>
+            <button class="win-plus-plus" onclick="openSpecialWinModal(${player})">Win++</button>
+        </div>
+      `;
+
+            document.getElementById("scoreboard").appendChild(card);
+
+            // Initialize score only if it's not already loaded from localStorage
+            if (scores[player] === undefined) {
+                scores[player] = 0;
+            }
+
+            // Name editing logic
+            const nameLabel = document.getElementById(`nameLabel${player}`);
+            const nameInput = document.getElementById(`nameInput${player}`);
+
+            nameLabel.addEventListener('click', () => {
+                nameLabel.style.display = 'none';
+                nameInput.style.display = 'block';
+                nameInput.value = nameLabel.textContent;
+                nameInput.focus();
+                nameInput.select();
+            });
+
+            nameInput.addEventListener('blur', () => {
+                let val = nameInput.value.trim();
+                if (val === '') val = `P${player}`;
+                nameLabel.textContent = val;
+                nameLabel.style.display = 'block';
+                nameInput.style.display = 'none';
+                updateRoundOrder();
+                saveGameState();
+                renderScoreChart();
+            });
+
+            nameInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    nameInput.blur();
+                } else if (e.key === 'Escape') {
+                    nameInput.value = nameLabel.textContent;
+                    nameInput.blur();
+                }
+            });
+
+            addScoreClickListener(player);
+        }
+
+        function removePlayerCard(player) {
+            const card = document.getElementById(`playerCard${player}`);
+            if (card) card.remove();
+            delete scores[player];
+        }
+
+        function triggerFlash(elementId) {
+            const elem = document.getElementById(elementId);
+            elem.classList.remove('flash-sweep');
+            void elem.offsetWidth; // Force reflow
+            elem.classList.add('flash-sweep');
+        }
+
+        function updateLiveButton() {
+            const btn = document.getElementById('liveBtn');
+            if (!btn) return;
+            btn.classList.toggle('live-on', isLiveMode);
+            btn.setAttribute('aria-pressed', isLiveMode ? 'true' : 'false');
+            btn.title = isLiveMode ? `Live publishing active (Join ${liveShare.joinCode})` : 'Tap to start Live mode';
+
+            const liveIdElement = document.getElementById('liveGameId');
+            if (liveIdElement) {
+                liveIdElement.textContent = liveGameId;
+            }
+
+            const joinCodeElement = document.getElementById('liveJoinCode');
+            if (joinCodeElement) {
+                joinCodeElement.textContent = liveShare.joinCode || '----';
+            }
+        }
+
+        function showLiveModal() {
+            const modal = document.getElementById('liveModal');
+            const gameIdElem = document.getElementById('liveGameId');
+            if (gameIdElem) {
+                gameIdElem.textContent = liveGameId;
+            }
+            modal.style.display = 'block';
+
+            const closeModal = () => {
+                modal.style.display = 'none';
+            };
+
+            modal.querySelector('.close-button').onclick = closeModal;
+            window.onclick = (event) => {
+                if (event.target == modal) {
+                    closeModal();
+                }
+            };
+        }
+
+        async function toggleLiveMode() {
+            isLiveMode = !isLiveMode;
+            updateLiveButton();
+
+            if (isLiveMode) {
+                showLiveModal();
+                const started = await startLiveShare();
+                if (!started) {
+                    isLiveMode = false;
+                    updateLiveButton();
+                }
+                console.log('Live mode enabled. Game ID:', liveGameId);
+            } else {
+                await stopLiveShare();
+                console.log('Live mode disabled.');
+            }
+            saveGameState();
+        }
+
+        function formatTime(date) {
+            const now = new Date(date);
+            let hours = now.getHours();
+            let minutes = now.getMinutes();
+            const ampm = hours >= 12 ? 'pm' : 'am';
+            hours = hours % 12;
+            hours = hours ? hours : 12; // the hour '0' should be '12'
+            minutes = minutes < 10 ? '0' + minutes : minutes;
+            return `${hours}:${minutes}${ampm}`;
+        }
+
+
+        function updateLastUpdate(historyEntry) {
+            const timeString = formatTime(historyEntry.time);
+            const lastUpdateElem = document.getElementById('lastUpdate');
+            lastUpdateElem.textContent = `📝 Last Update (${timeString}): ${historyEntry.text}`;
+            lastUpdateElem.title = "Click to view game log"; // Add tooltip
+            triggerFlash('lastUpdate');
+        }
+
+        function updateRoundOrder() {
+            const names = order.map(i => {
+                const label = document.getElementById(`nameLabel${i}`);
+                return label ? label.textContent : `Player ${i}`;
+            });
+            const roundOrderElem = document.getElementById("roundOrder");
+            const marqueeContentElem = roundOrderElem.querySelector('.marquee-content');
+            const fullText = `Round Order: ${names.join(" → ")}`;
+            // Temporarily set content to original to measure its true width
+            marqueeContentElem.textContent = fullText;
+            roundOrderElem.classList.remove('marquee'); // Always remove first to re-evaluate
+
+            // Defer the rest of the execution to allow the DOM to update
+            setTimeout(() => {
+                // Calculate the width of the original text
+                const originalTextWidth = marqueeContentElem.scrollWidth;
+
+                // Check if content overflows
+                if (originalTextWidth > roundOrderElem.clientWidth) {
+                    // Set the CSS variable for animation
+                    roundOrderElem.style.setProperty('--marquee-width', `-${originalTextWidth}px`);
+                    // Duplicate the content for seamless marquee with a separator
+                    marqueeContentElem.innerHTML = `${fullText}<span style="display:inline-block; width: 2rem;"></span>${fullText}`;
+                    roundOrderElem.classList.add('marquee');
+                } else {
+                    // If it doesn't overflow, ensure only original text is present
+                    marqueeContentElem.textContent = fullText;
+                    roundOrderElem.classList.remove('marquee');
+                    roundOrderElem.style.removeProperty('--marquee-width'); // Clean up CSS variable
+                }
+
+                triggerFlash('roundOrder');
+            }, 0);
+        }
+
+        function getPointsFor(action) {
+            if (action === 'win') return parseInt(document.getElementById('winPoints').value) || 0;
+            if (action === 'foul') return parseInt(document.getElementById('foulPoints').value) || 0;
+            if (action === 'bc') return parseInt(document.getElementById('bcPoints').value) || 0;
+            return 0;
+        }
+
+        function logState(message) {
+            historyLog.push({
+                text: message,
+                time: new Date()
+            });
+            scoreLog.push(JSON.parse(JSON.stringify(scores)));
+            orderLog.push([...order]);
+            headToHeadLog.push(JSON.parse(JSON.stringify(headToHeadStats)));
+            snookLog.push(JSON.parse(JSON.stringify(snookStats)));
+            document.getElementById('undoBtn').disabled = false;
+        }
+
+        function changeScore(player, action, element) {
+            let message = '';
+            const playerName = document.getElementById(`nameLabel${player}`).textContent;
+            const oldScores = JSON.parse(JSON.stringify(scores));
+
+            const idx = order.indexOf(player);
+
+            if (action === 'win') {
+                const points = getPointsFor(action);
+                const prevPlayerIndex = (idx - 1 + order.length) % order.length;
+                const prevPlayer = order[prevPlayerIndex];
+                const prevPlayerName = document.getElementById(`nameLabel${prevPlayer}`).textContent;
+
+                scores[player] += points;
+                scores[prevPlayer] -= points;
+
+                message = `${playerName} (→ ${scores[player]}) won ${prevPlayerName} (→ ${scores[prevPlayer]}).`;
+
+                if (!headToHeadStats[player]) {
+                    headToHeadStats[player] = {};
+                }
+                headToHeadStats[player][prevPlayer] = (headToHeadStats[player][prevPlayer] || 0) + 1;
+
+                updateOrderAfterWin(player);
+            } else if (action === 'foul') {
+                const points = getPointsFor(action);
+                const prevPlayerIndex = (idx - 1 + order.length) % order.length;
+                const prevPlayer = order[prevPlayerIndex];
+                const prevPlayerName = document.getElementById(`nameLabel${prevPlayer}`).textContent;
+
+                scores[player] -= points;
+                scores[prevPlayer] += points;
+
+                message = `${playerName} (→ ${scores[player]}) fouled to ${prevPlayerName} (→ ${scores[prevPlayer]}).`;
+
+                if (!snookStats[prevPlayer]) {
+                    snookStats[prevPlayer] = {};
+                }
+                snookStats[prevPlayer][player] = (snookStats[prevPlayer][player] || 0) + 1;
+
+            } else if (action === 'bc' || action === 'gb' || action === 'b&c' || action === 'dc') {
+                let points;
+                let messageActionText = '';
+                let others = order.filter(p => p !== player);
+                let totalLoss = 0;
+                let scoreUpdateStrings = [];
+
+                if (action === 'bc') {
+                    points = getPointsFor('bc');
+                    messageActionText = 'broke clear';
+                } else if (action === 'gb') {
+                    points = getPointsFor('win');
+                    messageActionText = 'golden break';
+                } else if (action === 'b&c') {
+                    points = getPointsFor('win');
+                    messageActionText = 'break-and-combi';
+                } else if (action === 'dc') {
+                    points = getPointsFor('bc');
+                    const prevPlayerIndex = (idx - 1 + order.length) % order.length;
+                    const loser = order[prevPlayerIndex];
+                    others = [loser]; // Only the preceding player
+                    
+                    // Update H2H stats for Dry Clear
+                    if (!headToHeadStats[player]) {
+                        headToHeadStats[player] = {};
+                    }
+                    headToHeadStats[player][loser] = (headToHeadStats[player][loser] || 0) + 1;
+                }
+
+
+                for (let p of others) {
+                    scores[p] -= points;
+                    totalLoss += points;
+                    scoreUpdateStrings.push(`${document.getElementById(`nameLabel${p}`).textContent} (→ ${scores[p]})`);
+                }
+                scores[player] += totalLoss;
+
+                if (element) {
+                    launchFireworksAtElement(element);
+                    rainLeaves();
+                }
+                
+                if (action === 'dc') {
+                    message = `${playerName} (→ ${scores[player]}) cleared a dry break!`;
+                    updateOrderAfterWin(player);
+                } else {
+                    message = `${playerName} (→ ${scores[player]}) ${messageActionText}! `;
+                }
+            }
+
+            logState(message);
+            updateLastUpdate(historyLog[historyLog.length - 1]);
+            console.log(`Action: ${message}`, '| Scores After:', scores);
+            saveGameState();
+
+
+            updateAllScores();
+            updateSpecialActionButtons();
+            renderScoreChart();
+        }
+
+        function updateAllScores(scoresToCompareAgainst) {
+            const oldScores = scoresToCompareAgainst || (scoreLog.length > 1 ? scoreLog[scoreLog.length - 2] : {});
+
+            for (let i in scores) {
+                const scoreElem = document.getElementById(`score${i}`);
+                if (scoreElem) {
+                    const oldScore = oldScores[i] !== undefined ? oldScores[i] : 0;
+                    const newScore = scores[i];
+
+                    scoreElem.textContent = newScore;
+
+                    scoreElem.classList.remove('score-increase', 'score-decrease');
+                    void scoreElem.offsetWidth; // Force reflow
+
+                    if (newScore > oldScore) {
+                        scoreElem.classList.add('score-increase');
+                    } else if (newScore < oldScore) {
+                        scoreElem.classList.add('score-decrease');
+                    }
+                }
+
+                const card = document.getElementById(`playerCard${i}`);
+                if (card) {
+                    card.classList.remove('positive', 'negative');
+                    if (scores[i] > 0) card.classList.add('positive');
+                    else if (scores[i] < 0) card.classList.add('negative');
+                }
+            }
+            updateRoundOrder();
+        }
+
+        function updateOrderAfterWin(winner) {
+            const idx = order.indexOf(winner);
+            if (!isFourPlayers) {
+                // 3-player logic
+                if (idx === 0) order = [order[0], order[2], order[1]];
+                else if (idx === 1) order = [order[1], order[0], order[2]];
+                else order = [order[2], order[1], order[0]];
+            } else {
+                // 4-player logic
+                if (idx === 0) order = [order[0], order[3], order[1], order[2]];
+                else if (idx === 1) order = [order[1], order[0], order[2], order[3]];
+                else if (idx === 2) order = [order[2], order[1], order[3], order[0]];
+                else order = [order[3], order[2], order[0], order[1]];
+            }
+        }
+
+        function updateSpecialActionButtons() {
+            for (let i in scores) {
+                const card = document.getElementById(`playerCard${i}`);
+                if (!card) continue;
+                const winPlusPlusBtn = card.querySelector('.win-plus-plus');
+                if (winPlusPlusBtn) {
+                    const playerNum = parseInt(i);
+                    
+                    // Reset classes first
+                    winPlusPlusBtn.classList.remove('bc', 'bc-no-glow');
+
+                    if (playerNum === order[0]) { // P1
+                        winPlusPlusBtn.classList.add('bc');
+                        winPlusPlusBtn.disabled = false;
+                    } else if (playerNum === order[1]) { // P2
+                        winPlusPlusBtn.classList.add('bc-no-glow');
+                        winPlusPlusBtn.disabled = false;
+                    } else { // Others
+                        winPlusPlusBtn.classList.add('bc'); // Add a default for styling when disabled
+                        winPlusPlusBtn.disabled = true;
+                    }
+                }
+            }
+        }
+
+        function openSpecialWinModal(player) {
+            const modal = document.getElementById('specialWinModal');
+            modal.style.display = 'block';
+
+            const closeModal = () => {
+                modal.style.display = 'none';
+            };
+
+            const isP1 = (player === order[0]);
+            const isP2 = (player === order[1]);
+
+            const bcBtn = document.getElementById('sw-bc');
+            const gbBtn = document.getElementById('sw-gb');
+            const bncBtn = document.getElementById('sw-bnc');
+            const dcBtn = document.getElementById('sw-dc');
+
+            // Set disabled state based on player position
+            bcBtn.disabled = !isP1;
+            gbBtn.disabled = !isP1;
+            bncBtn.disabled = !isP1;
+            dcBtn.disabled = !isP2;
+
+            // Assign onclick handlers
+            bcBtn.onclick = () => {
+                changeScore(player, 'bc', document.getElementById(`playerCard${player}`));
+                closeModal();
+            };
+            gbBtn.onclick = () => {
+                changeScore(player, 'gb', document.getElementById(`playerCard${player}`));
+                closeModal();
+            };
+            bncBtn.onclick = () => {
+                changeScore(player, 'b&c', document.getElementById(`playerCard${player}`));
+                closeModal();
+            };
+            dcBtn.onclick = () => {
+                changeScore(player, 'dc', document.getElementById(`playerCard${player}`));
+                closeModal();
+            };
+
+            modal.querySelector('.close-button').onclick = closeModal;
+            window.onclick = (event) => {
+                if (event.target == modal) {
+                    closeModal();
+                }
+            };
+        }
+
+        function showHelpModal() {
+            const modal = document.getElementById('helpModal');
+            modal.style.display = 'block';
+
+            const closeModal = () => {
+                modal.style.display = 'none';
+            };
+
+            modal.querySelector('.close-button').onclick = closeModal;
+            window.onclick = (event) => {
+                if (event.target == modal) {
+                    closeModal();
+                }
+            };
+        }
+
+        function confirmReset() {
+            showConfirmation("Are you sure you want to reset the game? This action cannot be undone.", resetScores);
+        }
+
+        function resetScores() {
+            const message = 'Game Reset';
+            historyLog = [];
+            scoreLog = [];
+            orderLog = [];
+            headToHeadStats = {};
+            headToHeadLog = [];
+            snookStats = {};
+            snookLog = [];
+
+            for (let i in scores) scores[i] = 0;
+
+            liveGameId = generateSessionId();
+            liveShare.joinCode = generateJoinCode();
+            localStorage.setItem('guardBoardJoinCode', liveShare.joinCode);
+
+            logState(message);
+
+            console.log(`Action: ${message}`, '| All scores reset.');
+            updateLastUpdate(historyLog[historyLog.length - 1]);
+            updateAllScores();
+            renderScoreChart();
+
+            document.getElementById('undoBtn').disabled = true;
+            localStorage.removeItem('guardBoardGameState');
+            console.log('Game state cleared from localStorage.');
+            updateLiveButton();
+            console.log('New session ID:', liveGameId);
+            scheduleLiveShareUpdate();
+        }
+
+
+        function togglePlayersMode() {
+            const futurePlayerCount = isFourPlayers ? 3 : 4;
+            showConfirmation(`Change mode to ${futurePlayerCount} players? This will reset the scores.`, () => {
+                resetScores();
+
+                if (isFourPlayers) {
+                    removePlayerCard(4);
+                    order = [1, 2, 3];
+                    isFourPlayers = false;
+                    document.getElementById('togglePlayersBtn').textContent = '3 Players';
+                    document.getElementById('scoreboard').classList.remove('four-players');
+                    document.getElementById('scoreboard').classList.add('three-players');
+                } else {
+                    createPlayerCard(4);
+                    order = [1, 2, 3, 4];
+                    isFourPlayers = true;
+                    document.getElementById('togglePlayersBtn').textContent = '4 Players';
+                    document.getElementById('scoreboard').classList.remove('three-players');
+                    document.getElementById('scoreboard').classList.add('four-players');
+                }
+
+                updateAllScores();
+                updateSpecialActionButtons();
+                saveGameState();
+            });
+        }
+
+        function addScoreClickListener(player) {
+            const scoreElem = document.getElementById(`score${player}`);
+            if (!scoreElem) return;
+            scoreElem.addEventListener('click', () => {
+                const playerName = document.getElementById(`nameLabel${player}`).textContent;
+                const oldScore = scores[player];
+                let newScore = prompt(`Enter new score for ${playerName}:`, scores[player]);
+                if (newScore === null) return;
+                newScore = newScore.trim();
+                if (/^-?\d+$/.test(newScore)) {
+                    const parsedNewScore = parseInt(newScore);
+                    const message = `${playerName}'s score manually set to ${parsedNewScore} (${oldScore} → ${parsedNewScore}).`;
+                    scores[player] = parsedNewScore;
+                    logState(message);
+                    updateLastUpdate(historyLog[historyLog.length - 1]);
+                    console.log(`Action: ${message}`, '| Scores After:', scores);
+                    updateAllScores();
+                    updateSpecialActionButtons();
+                    saveGameState();
+                    renderScoreChart();
+                } else {
+                    alert("Please enter a valid integer number.");
+                }
+            });
+        }
+
+        function undoLastAction() {
+            if (historyLog.length <= 1) {
+                alert("Nothing to undo.");
+                return;
+            }
+
+            const lastActionMessage = historyLog[historyLog.length - 1].text;
+            showConfirmation(`Are you sure you want to undo this action?<br><br><i>"${lastActionMessage}"</i>`, () => {
+                const undoneScores = JSON.parse(JSON.stringify(scoreLog[scoreLog.length - 1]));
+
+                historyLog.pop();
+                scoreLog.pop();
+                orderLog.pop();
+                headToHeadLog.pop();
+                snookLog.pop();
+
+                const previousScores = scoreLog[scoreLog.length - 1];
+                const previousOrder = orderLog[orderLog.length - 1];
+                const previousMessage = historyLog[historyLog.length - 1];
+                const previousHeadToHead = headToHeadLog[headToHeadLog.length - 1];
+                const previousSnookStats = snookLog[snookLog.length - 1];
+
+                scores = JSON.parse(JSON.stringify(previousScores));
+                order = [...previousOrder];
+                headToHeadStats = JSON.parse(JSON.stringify(previousHeadToHead));
+                snookStats = JSON.parse(JSON.stringify(previousSnookStats));
+
+                updateAllScores(undoneScores);
+                updateSpecialActionButtons();
+                updateLastUpdate(previousMessage);
+                renderScoreChart();
+                console.log("Undo successful. Reverted to previous state:", {
+                    scores,
+                    order
+                });
+
+                if (historyLog.length <= 1) {
+                    document.getElementById('undoBtn').disabled = true;
+                }
+                saveGameState();
+            });
+        }
+
+        function saveGameState() {
+            const gameState = {
+                playerNames: {},
+                scores: scores,
+                order: order,
+                isFourPlayers: isFourPlayers,
+                historyLog: historyLog,
+                scoreLog: scoreLog,
+                orderLog: orderLog,
+                headToHeadStats: headToHeadStats,
+                headToHeadLog: headToHeadLog,
+                snookStats: snookStats,
+                snookLog: snookLog,
+                isLiveMode: isLiveMode,
+                liveGameId: liveGameId,
+                liveDocId: liveShare.docId,
+                liveJoinCode: liveShare.joinCode
+            };
+            // Save player names separately as they are in the DOM
+            for (let i = 1; i <= (isFourPlayers ? 4 : 3); i++) {
+                const nameLabel = document.getElementById(`nameLabel${i}`);
+                if (nameLabel) {
+                    gameState.playerNames[i] = nameLabel.textContent;
+                }
+            }
+            localStorage.setItem('guardBoardGameState', JSON.stringify(gameState));
+            console.log('Game state saved to localStorage.');
+            sendToFirebase(gameState);
+            scheduleLiveShareUpdate();
+        }
+
+        function loadGameState() {
+            const savedState = localStorage.getItem('guardBoardGameState');
+            if (savedState) {
+                const gameState = JSON.parse(savedState);
+
+                scores = gameState.scores || {};
+                order = gameState.order || [1, 2, 3];
+                isFourPlayers = gameState.isFourPlayers || false;
+                historyLog = gameState.historyLog || [];
+                scoreLog = gameState.scoreLog || [];
+                orderLog = gameState.orderLog || [];
+                headToHeadStats = gameState.headToHeadStats || {};
+                headToHeadLog = gameState.headToHeadLog || [];
+                snookStats = gameState.snookStats || {};
+                snookLog = gameState.snookLog || [];
+                isLiveMode = false;
+                liveGameId = gameState.liveGameId || generateSessionId();
+                liveShare.docId = gameState.liveDocId || liveShare.docId;
+                liveShare.joinCode = normalizeJoinCode(gameState.liveJoinCode || liveShare.joinCode);
+                localStorage.setItem('guardBoardJoinCode', liveShare.joinCode);
+                if (liveShare.docId) {
+                    localStorage.setItem('guardBoardLiveDocId', liveShare.docId);
+                }
+
+                // Recreate player cards based on loaded state
+                const scoreboard = document.getElementById("scoreboard");
+                scoreboard.innerHTML = ''; // Clear existing cards
+
+                const playerCount = isFourPlayers ? 4 : 3;
+                for (let i = 1; i <= playerCount; i++) {
+                    createPlayerCard(i);
+                }
+
+                // Set player names
+                if (gameState.playerNames) {
+                    for (let i in gameState.playerNames) {
+                        const nameLabel = document.getElementById(`nameLabel${i}`);
+                        if (nameLabel) {
+                            nameLabel.textContent = gameState.playerNames[i];
+                        }
+                    }
+                }
+
+                document.getElementById('togglePlayersBtn').textContent = isFourPlayers ? '4 Players' : '3 Players';
+                scoreboard.classList.remove('three-players', 'four-players');
+                scoreboard.classList.add(isFourPlayers ? 'four-players' : 'three-players');
+
+                updateAllScores();
+                updateRoundOrder();
+                updateSpecialActionButtons();
+                renderScoreChart();
+                if (historyLog.length > 0) {
+                    updateLastUpdate(historyLog[historyLog.length - 1]);
+                } else {
+                    document.getElementById('lastUpdate').textContent = 'No recent updates.';
+                }
+                document.getElementById('undoBtn').disabled = historyLog.length <= 1;
+
+                console.log('Game state loaded from localStorage.');
+                return true;
+            }
+            return false;
+        }
+
+        function sendToFirebase(gameState) {
+            if (!db) return;
+
+            // We use the gameId to separate different tables.
+            // If you find the other app uses a specific path like 'live_scores/', 
+            // change this line to: const dbPath = 'live_scores/' + gameId;
+            const dbPath = 'guard_games/' + gameId; 
+
+            db.ref(dbPath).set({
+                scores: gameState.scores,
+                order: gameState.order,
+                playerNames: gameState.playerNames,
+                lastUpdate: new Date().toISOString()
+            }).catch(err => console.error("Firebase update failed:", err));
+        }
+
+        function stableStringify(value) {
+            const seen = new WeakSet();
+            const helper = (val) => {
+                if (val && typeof val === 'object') {
+                    if (seen.has(val)) return null;
+                    seen.add(val);
+                    if (Array.isArray(val)) {
+                        return val.map(helper);
+                    }
+                    const out = {};
+                    Object.keys(val).sort().forEach((key) => {
+                        out[key] = helper(val[key]);
+                    });
+                    return out;
+                }
+                return val;
+            };
+            return JSON.stringify(helper(value));
+        }
+
+        function getLivePlayersMap() {
+            const players = {};
+            const count = isFourPlayers ? 4 : 3;
+            for (let i = 1; i <= count; i++) {
+                const label = document.getElementById(`nameLabel${i}`);
+                players[i] = label ? label.textContent : `Player ${i}`;
+            }
+            return players;
+        }
+
+        function buildActionStats(players) {
+            const build = {};
+            Object.keys(players).forEach((id) => {
+                build[id] = 0;
+            });
+            return {
+                win: { ...build },
+                foul: { ...build },
+                golden: { ...build },
+                bc: { ...build }
+            };
+        }
+
+        function buildLivePayload() {
+            const players = getLivePlayersMap();
+            const safeHistoryLog = historyLog.map((entry) => ({
+                text: entry.text,
+                time: entry.time instanceof Date ? entry.time.toISOString() : entry.time
+            }));
+            const safeScoreLog = scoreLog.map((entry) => ({ ...entry }));
+            const safeOrderLog = orderLog.map((entry) => Array.isArray(entry) ? entry.join(',') : String(entry));
+
+            return {
+                title: 'Guard Scoreboard',
+                players,
+                isFourPlayers,
+                scores: { ...scores },
+                actionStats: buildActionStats(players),
+                order: [...order],
+                historyLog: safeHistoryLog,
+                scoreLog: safeScoreLog,
+                orderLog: safeOrderLog,
+                rates: {
+                    win: parseInt(document.getElementById('winPoints').value) || 0,
+                    foul: parseInt(document.getElementById('foulPoints').value) || 0,
+                    bc: parseInt(document.getElementById('bcPoints').value) || 0
+                },
+                status: 'live',
+                joinCode: liveShare.joinCode,
+                lastWriteBy: liveShare.clientId || 'unknown'
+            };
+        }
+
+        async function startLiveShare() {
+            if (!firestoreDb) {
+                console.warn('Firestore not initialized, live sharing disabled.');
+                return false;
+            }
+
+            try {
+            liveShare.joinCode = normalizeJoinCode(liveShare.joinCode);
+            localStorage.setItem('guardBoardJoinCode', liveShare.joinCode);
+
+                const payload = buildLivePayload();
+                const serverTimestamp = firebase.firestore.FieldValue.serverTimestamp();
+                payload.updatedAt = serverTimestamp;
+
+                if (liveShare.docId) {
+                    liveShare.ref = firestoreDb.collection('guard').doc(liveShare.docId);
+                    await liveShare.ref.set(payload, { merge: true });
+                } else {
+                    payload.createdAt = serverTimestamp;
+                    const ref = await firestoreDb.collection('guard').add(payload);
+                    liveShare.ref = ref;
+                    liveShare.docId = ref.id;
+                    localStorage.setItem('guardBoardLiveDocId', liveShare.docId);
+                }
+
+                liveShare.enabled = true;
+                return true;
+            } catch (err) {
+                console.warn('Live share start failed:', err);
+                liveShare.enabled = false;
+                return false;
+            }
+        }
+
+        async function stopLiveShare() {
+            if (!firestoreDb || !liveShare.ref) {
+                liveShare.enabled = false;
+                return;
+            }
+
+            try {
+                await liveShare.ref.set({
+                    status: 'ended',
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    lastWriteBy: liveShare.clientId || 'unknown'
+                }, { merge: true });
+            } catch (err) {
+                console.warn('Failed to end live share session:', err);
+            }
+
+            liveShare.enabled = false;
+            liveShare.ref = null;
+            liveShare.docId = null;
+            localStorage.removeItem('guardBoardLiveDocId');
+        }
+
+        const scheduleLiveShareUpdate = (() => {
+            let timeout;
+            return function () {
+                if (!isLiveMode || !liveShare.ref || !firestoreDb) return;
+                clearTimeout(timeout);
+                timeout = setTimeout(() => {
+                    const payload = buildLivePayload();
+                    const minimal = {
+                        scores: payload.scores,
+                        order: payload.order,
+                        isFourPlayers: payload.isFourPlayers,
+                        historyLog: payload.historyLog,
+                        scoreLog: payload.scoreLog,
+                        orderLog: payload.orderLog,
+                        players: payload.players,
+                        rates: payload.rates,
+                        joinCode: payload.joinCode
+                    };
+                    const hash = stableStringify(minimal);
+                    if (hash === liveShare.lastWrittenHash) return;
+                    liveShare.lastWrittenHash = hash;
+
+                    liveShare.ref.set({
+                        ...payload,
+                        status: 'live',
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        lastWriteBy: liveShare.clientId || 'unknown'
+                    }, { merge: true }).catch((err) => {
+                        console.warn('Live share update failed:', err);
+                    });
+                }, 400);
+            };
+        })();
+
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        function init() {
+            document.getElementById('togglePlayersBtn').addEventListener('click', togglePlayersMode);
+            document.getElementById('undoBtn').addEventListener('click', undoLastAction);
+            document.getElementById('lastUpdate').addEventListener('click', showGameLog);
+            document.querySelector('.reset').addEventListener('click', confirmReset);
+            document.getElementById('exportChartBtn').addEventListener('click', exportChart);
+            document.getElementById('liveBtn').addEventListener('click', toggleLiveMode);
+            window.addEventListener('resize', debounce(updateRoundOrder, 250));
+
+            if (!loadGameState()) {
+                // If no saved state, initialize default 3 players
+                [1, 2, 3].forEach(createPlayerCard);
+                const message = 'Game Started';
+                logState(message);
+                updateLastUpdate(historyLog[historyLog.length - 1]);
+                console.log(`Action: ${message}`, '| Initial State:', {
+                    scores,
+                    order
+                });
+                document.getElementById('undoBtn').disabled = true;
+            }
+
+            updateLiveButton();
+            if (isLiveMode) {
+                startLiveShare().catch((err) => console.warn('Live share start failed:', err));
+            }
+            updateRoundOrder();
+            updateSpecialActionButtons();
+            renderScoreChart();
+        }
+
+        function showConfirmation(message, onConfirm) {
+            const modal = document.getElementById('gameLogModal');
+            const contentEl = document.getElementById('gameLogContent');
+            const footerEl = document.getElementById('gameLogFooter');
+
+            contentEl.innerHTML = `<p>${message}</p>`;
+            footerEl.innerHTML = `
+                <button class="modal-confirm-btn">Confirm</button>
+                <button class="modal-cancel-btn">Cancel</button>
+            `;
+            modal.style.display = 'block';
+
+            const confirmBtn = footerEl.querySelector('.modal-confirm-btn');
+            const cancelBtn = footerEl.querySelector('.modal-cancel-btn');
+            const closeBtn = modal.querySelector('.close-button');
+
+            const closeModal = () => {
+                modal.style.display = 'none';
+                contentEl.innerHTML = '';
+                footerEl.innerHTML = '';
+            };
+
+            confirmBtn.onclick = () => {
+                onConfirm();
+                closeModal();
+            };
+            cancelBtn.onclick = closeModal;
+            closeBtn.onclick = closeModal;
+            window.onclick = (event) => {
+                if (event.target == modal) {
+                    closeModal();
+                }
+            };
+        }
+
+        function showGameLog() {
+            const modal = document.getElementById('gameLogModal');
+            const contentEl = document.getElementById('gameLogContent');
+            const footerEl = document.getElementById('gameLogFooter');
+            footerEl.innerHTML = ''; // Clear footer for log view
+
+            // Calculate stats
+            let racksPlayed = 0;
+            const playerStats = {};
+            const players = isFourPlayers ? [1, 2, 3, 4] : [1, 2, 3];
+            players.forEach(i => {
+                playerStats[i] = {
+                    wins: 0,
+                    fouls: 0,
+                    bc: 0,
+                    gb: 0,
+                    bnc: 0
+                };
+            });
+
+
+            historyLog.forEach(entry => {
+                const text = entry.text.toLowerCase();
+                if (text.includes('won') || text.includes('broke clear') || text.includes('golden break') || text.includes('break-and-combi') || text.includes('dry clear')) {
+                    racksPlayed++;
+                }
+
+                players.forEach(i => {
+                    const playerName = document.getElementById(`nameLabel${i}`).textContent.toLowerCase();
+                    if (text.startsWith(playerName)) {
+                        if (text.includes('won') || text.includes('cleared a dry break')) playerStats[i].wins++;
+                        if (text.includes('fouled')) playerStats[i].fouls++;
+                        if (text.includes('broke clear')) playerStats[i].bc++;
+                        if (text.includes('golden break')) playerStats[i].gb++;
+                        if (text.includes('break-and-combi')) playerStats[i].bnc++;
+                    }
+                });
+            });
+
+            // Build content string
+            let content = `<h3>Game Summary</h3>`;
+            content += `<p><b>Racks Played:</b> ${racksPlayed}</p>`;
+            content += '<ul>';
+            players.forEach(i => {
+                const playerName = document.getElementById(`nameLabel${i}`).textContent;
+                const stats = playerStats[i];
+                content += `<li><b>${playerName}:</b> <ul><li>${stats.wins} Wins, ${stats.fouls} Fouls </li><li>${stats.bc} Break Clear, ${stats.gb} Golden Break, ${stats.bnc} Break&Combi</li></ul>`;
+            });
+            content += '</ul>';
+            content += '<hr>';
+
+            // Head-to-Head Table
+            content += '<h3>Head-to-Head Wins</h3>';
+            const playerNames = players.map(p => document.getElementById(`nameLabel${p}`).textContent);
+
+            content += `<style>
+                .h2h-table-wrapper { overflow-x: auto; margin-bottom: 1rem; }
+                .h2h-table { width: 100%; border-collapse: collapse; min-width: 400px; }
+                .h2h-table th, .h2h-table td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+                .h2h-table th { background-color: #f2f2f2; }
+                .h2h-table .winner-col { background-color: #e8f5e9; font-weight: bold; }
+                .h2h-table .loser-header { background-color: #fbe9e7; }
+                .h2h-table .diagonal-cell { background-color: #e0e0e0; }
+                .h2h-table .total-cell { font-weight: bold; background-color: #e9ecef; }
+            </style>`;
+
+            // --- H2H Wins Table ---
+            const h2hColumnTotals = players.reduce((acc, p) => ({ ...acc, [p]: 0 }), {});
+            let h2hGrandTotal = 0;
+
+            content += '<div class="h2h-table-wrapper">';
+            content += '<table class="h2h-table">';
+            // Header row
+            content += '<tr><th>Win / Lose</th>';
+            playerNames.forEach(name => {
+                content += `<th class="loser-header">${name}</th>`;
+            });
+            content += '<th class="total-cell">Total Wins</th></tr>';
+
+            // Data rows
+            players.forEach((winnerId, rowIndex) => {
+                let rowTotal = 0;
+                content += '<tr>';
+                content += `<td class="winner-col">${playerNames[rowIndex]}</td>`;
+                players.forEach((loserId) => {
+                    if (winnerId === loserId) {
+                        content += '<td class="diagonal-cell"></td>';
+                    } else {
+                        const wins = (headToHeadStats[winnerId] && headToHeadStats[winnerId][loserId]) ? headToHeadStats[winnerId][loserId] : 0;
+                        rowTotal += wins;
+                        h2hColumnTotals[loserId] += wins;
+                        h2hGrandTotal += wins;
+                        content += `<td>${wins}</td>`;
+                    }
+                });
+                content += `<td class="total-cell">${rowTotal}</td>`;
+                content += '</tr>';
+            });
+
+            // Total Losses Row
+            content += '<tr><td class="total-cell">Total Losses</td>';
+            players.forEach(p => {
+                content += `<td class="total-cell">${h2hColumnTotals[p]}</td>`;
+            });
+            content += `<td class="total-cell">${h2hGrandTotal}</td></tr>`;
+            content += '</table></div>';
+
+
+            // --- Snooks Summary Table ---
+            const snookColumnTotals = players.reduce((acc, p) => ({ ...acc, [p]: 0 }), {});
+            let snookGrandTotal = 0;
+
+            content += '<h3>Snooks Summary</h3>';
+            content += '<div class="h2h-table-wrapper">';
+            content += '<table class="h2h-table">';
+            // Header row
+            content += '<tr><th>Snook / Fouled To</th>';
+            playerNames.forEach(name => {
+                content += `<th class="loser-header">${name}</th>`;
+            });
+            content += '<th class="total-cell">Total Given</th></tr>';
+
+            // Data rows
+            players.forEach((snookerId, rowIndex) => {
+                let rowTotal = 0;
+                content += '<tr>';
+                content += `<td class="winner-col">${playerNames[rowIndex]}</td>`;
+                players.forEach((snookeredId) => {
+                    if (snookerId === snookeredId) {
+                        content += '<td class="diagonal-cell"></td>';
+                    } else {
+                        const snooks = (snookStats[snookerId] && snookStats[snookerId][snookeredId]) ? snookStats[snookerId][snookeredId] : 0;
+                        rowTotal += snooks;
+                        snookColumnTotals[snookeredId] += snooks;
+                        snookGrandTotal += snooks;
+                        content += `<td>${snooks}</td>`;
+                    }
+                });
+                content += `<td class="total-cell">${rowTotal}</td>`;
+                content += '</tr>';
+            });
+
+            // Total Received Row
+            content += '<tr><td class="total-cell">Total Received</td>';
+            players.forEach(p => {
+                content += `<td class="total-cell">${snookColumnTotals[p]}</td>`;
+            });
+            content += `<td class="total-cell">${snookGrandTotal}</td></tr>`;
+            content += '</table></div>';
+
+
+            content += '<h3>Action History</h3>';
+            content += '<ul>';
+            historyLog.forEach(entry => {
+                const time = formatTime(entry.time);
+                const text = entry.text;
+                const lowerText = text.toLowerCase();
+                let logClass = '';
+                let icon = '';
+
+                if (lowerText.includes('broke clear') || lowerText.includes('golden break') || lowerText.includes('break-and-combi')) {
+                    logClass = 'log-major-win';
+                    icon = '✨';
+                } else if (lowerText.includes('won') || lowerText.includes('cleared a dry break')) {
+                    logClass = 'log-win';
+                    icon = '🏆';
+                } else if (lowerText.includes('fouled')) {
+                    logClass = 'log-foul';
+                    icon = '🔴';
+                } else if (lowerText.includes('manually set') || lowerText.includes('game reset')) {
+                    logClass = 'log-admin';
+                    icon = '✏️';
+                }
+
+                content += `<li><span class="${logClass}">${icon} (${time}) ${text}</span></li>`;
+            });
+            content += '</ul>';
+
+            contentEl.innerHTML = content;
+            modal.style.display = 'block';
+
+            // Close modal logic
+            const closeBtn = modal.querySelector('.close-button');
+            closeBtn.onclick = () => modal.style.display = 'none';
+            window.onclick = (event) => {
+                if (event.target == modal) {
+                    modal.style.display = 'none';
+                }
+            };
+        }
+
+
+        function createLeaf() {
+            const leaf = document.createElement('div');
+            leaf.classList.add('leaf');
+
+            const emojis = ['🤑', '🍀', '💰'];
+            leaf.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+
+            leaf.style.left = Math.random() * window.innerWidth + 'px';
+            const size = 16 + Math.random() * 24;
+            leaf.style.fontSize = size + 'px';
+            const duration = 3 + Math.random() * 4;
+            leaf.style.animationDuration = duration + 's';
+            leaf.style.animationDelay = (Math.random() * 2) + 's';
+            leaf.style.transform = `rotate(${Math.random() * 360}deg)`;
+
+            document.body.appendChild(leaf);
+
+            leaf.addEventListener('animationend', () => {
+                leaf.remove();
+            });
+        }
+
+        function rainLeaves() {
+            let count = 0;
+            const interval = setInterval(() => {
+                createLeaf();
+                count++;
+                if (count >= 18) clearInterval(interval);
+            }, 50);
+        }
+
+        document.getElementById('branding').addEventListener('click', rainLeaves);
+
+
+        function launchFireworksAtElement(elem) {
+            const rect = elem.getBoundingClientRect();
+            const originX = rect.left + rect.width / 2;
+            const originY = rect.top + rect.height / 2;
+
+            const emojis = ['🤑', '🍀', '💰'];
+            const count = 50;
+
+            for (let i = 0; i < count; i++) {
+                const span = document.createElement('span');
+                span.classList.add('firework-piece');
+                span.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+                document.body.appendChild(span);
+
+                const angle = Math.random() * 2 * Math.PI;
+                const radius = 100 + Math.random() * 50;
+                const x = Math.cos(angle) * radius;
+                const y = Math.sin(angle) * radius;
+
+                span.style.left = originX + 'px';
+                span.style.top = originY + 'px';
+                span.style.setProperty('--x', `${x}px`);
+                span.style.setProperty('--y', `${y}px`);
+
+                span.addEventListener('animationend', () => span.remove());
+            }
+        }
+
+
+        function exportChart() {
+            const canvas = document.getElementById('scoreChart');
+            // Create a temporary canvas to draw a white background
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = canvas.width;
+            tempCanvas.height = canvas.height;
+            const tempCtx = tempCanvas.getContext('2d');
+            
+            // Fill the background with white
+            tempCtx.fillStyle = '#FFFFFF';
+            tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+            
+            // Draw the original chart on top
+            tempCtx.drawImage(canvas, 0, 0);
+
+            // Convert to JPG and trigger download
+            const image = tempCanvas.toDataURL('image/jpeg', 1.0);
+            const link = document.createElement('a');
+            link.href = image;
+            link.download = 'score-chart.jpg';
+            link.click();
+        }
+
+        function renderScoreChart() {
+            const ctx = document.getElementById('scoreChart').getContext('2d');
+            const players = isFourPlayers ? [1, 2, 3, 4] : [1, 2, 3];
+            const playerNames = players.map(p => document.getElementById(`nameLabel${p}`).textContent);
+            const playerColors = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0'];
+
+            const datasets = players.map((player, index) => {
+                return {
+                    label: playerNames[index],
+                    data: scoreLog.map(scores => scores[player] !== undefined ? scores[player] : null),
+                    borderColor: playerColors[index],
+                    backgroundColor: playerColors[index] + '33', // semi-transparent fill
+                    fill: false,
+                    tension: 0.1
+                };
+            });
+
+            const labels = scoreLog.map((_, index) => `Turn ${index}`);
+
+            if (scoreChart) {
+                scoreChart.destroy();
+            }
+
+            // Dynamically set chart sizer width
+            const sizer = document.getElementById('chart-sizer');
+            const container = document.querySelector('.chart-container');
+            
+            const containerStyles = window.getComputedStyle(container);
+            const containerPadding = parseFloat(containerStyles.paddingLeft) + parseFloat(containerStyles.paddingRight);
+            const availableWidth = container.clientWidth - containerPadding;
+
+            const turnCount = scoreLog.length;
+            const calculatedWidth = turnCount * 50; // 50px per turn
+
+            const newWidth = Math.max(availableWidth, calculatedWidth);
+            sizer.style.width = `${newWidth}px`;
+
+
+            scoreChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Turn Number'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Score'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            align: 'start',
+                            labels: {
+                                usePointStyle: true,
+                            }
+                        },
+                        title: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+
+
+        init();
+    </script>
+    <footer>© @jingloon 2025 Guard Scoreboard. <br /> <i>for the Degens. Made with Kopi Peng ☕. </i></footer>
+</body>
+
+</html>
