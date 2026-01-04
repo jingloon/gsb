@@ -61,6 +61,41 @@
             flex-wrap: wrap;
         }
 
+        .menu-wrap {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .extra-actions {
+            position: absolute;
+            top: calc(100% + 0.4rem);
+            right: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+            background: #0d1321;
+            padding: 0.5rem;
+            border-radius: 8px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+            transform-origin: top right;
+            transform: translateY(-6px) scale(0.98);
+            opacity: 0;
+            pointer-events: none;
+            transition: transform 140ms ease, opacity 140ms ease;
+        }
+
+        .extra-actions.is-open {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .more-btn {
+            background-color: #5f6b75;
+            font-weight: 700;
+        }
+
         .help-btn {
             background-color: #4a90e2;
             border-radius: 50%;
@@ -151,6 +186,23 @@
             border: none;
             cursor: not-allowed;
             box-shadow: none;
+        }
+
+        @media (min-width: 721px) {
+            .more-btn {
+                display: none;
+            }
+
+            .extra-actions {
+                position: static;
+                flex-direction: row;
+                background: transparent;
+                padding: 0;
+                box-shadow: none;
+                transform: none;
+                opacity: 1;
+                pointer-events: auto;
+            }
         }
 
         /* Scoring fields fixed below menu */
@@ -613,9 +665,15 @@
         <div class="right-buttons">
             <button class="help-btn" onclick="showHelpModal()">?</button>
             <button id="liveBtn" class="live-btn" title="Tap to start Live mode"><span class="live-dot"></span><span>Live</span></button>
-            <button id="togglePlayersBtn">3 Players</button>
-            <button id="undoBtn">Undo</button>
-            <button class="reset" onclick="confirmReset()">Reset</button>
+            
+            <div class="menu-wrap">
+                <button id="moreActionsBtn" class="more-btn" aria-expanded="false" aria-controls="extraActions">☰</button>
+                <div id="extraActions" class="extra-actions">
+                    <button id="togglePlayersBtn">3P</button>
+                    <button id="undoBtn">Undo</button>
+                    <button class="reset" onclick="confirmReset()">Reset</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -658,7 +716,7 @@
         <div class="modal-content">
             <span class="close-button">&times;</span>
             <h3>Live Mode</h3>
-            <p>📈📉 Scores will be updated live <i>(insecurely..)</i> to KM's scoreboard.</p>
+            <p>🔴📈📉 Scores will be updated live <i>(insecurely..)</i> to KM's scoreboard.</p>
             <p><strong>Join Code:</strong> <span id="liveJoinCode">0000</span></p>
             <p><strong>Game ID:</strong> <span id="liveGameId">#6969</span></p>
         </div>
@@ -684,12 +742,13 @@
 
             <h4>📱 Using the App</h4>
             <ul>
-                <li>🧑‍🤝‍🧑 <strong>3/4 Players:</strong> Tap this button in the top menu to switch between 3 and 4 player mode. <strong>Warning:</strong> This will reset the game and cannot be done midway.</li>
+                <li>🧑‍🤝‍🧑 <strong>3/4 Players:</strong> Tap this button in the top menu (within ☰ button) to switch between 3 and 4 player mode. <strong>Warning:</strong> This will reset the game and cannot be done midway.</li>
                 <li>🔢 <strong>Edit Point Values:</strong> Tap the number boxes in the top bar (e.g., Foul: 1, Win: 3, BC: 5) to set custom point values for the game.</li>
                 <li>✏️ <strong>Edit Names:</strong> Tap on any "Player X" name to type a new one.</li>
                 <li>✍️ <strong>Manual Score Edit:</strong> Tap directly on a player's score to enter a new value.</li>
                 <li>📊 <strong>Game Summary:</strong> Tap the "Last Update" bar at the bottom to see detailed stats, head-to-head records, and the full action history.</li>
                 <li>📈 <strong>Timeline:</strong> The chart tracks score changes over time. You can scroll it horizontally and export it as a JPG.</li>
+                <li>🔴 <strong>Live Mode:</strong> Toggle the Live mode to update scores into KM's Guard Data Exchange <i>(insecurely.. 🫢)</i></li>
             </ul>
         </div>
     </div>
@@ -1313,14 +1372,14 @@
                     removePlayerCard(4);
                     order = [1, 2, 3];
                     isFourPlayers = false;
-                    document.getElementById('togglePlayersBtn').textContent = '3 Players';
+                    document.getElementById('togglePlayersBtn').textContent = '3P';
                     document.getElementById('scoreboard').classList.remove('four-players');
                     document.getElementById('scoreboard').classList.add('three-players');
                 } else {
                     createPlayerCard(4);
                     order = [1, 2, 3, 4];
                     isFourPlayers = true;
-                    document.getElementById('togglePlayersBtn').textContent = '4 Players';
+                    document.getElementById('togglePlayersBtn').textContent = '4P';
                     document.getElementById('scoreboard').classList.remove('three-players');
                     document.getElementById('scoreboard').classList.add('four-players');
                 }
@@ -1474,7 +1533,7 @@
                     }
                 }
 
-                document.getElementById('togglePlayersBtn').textContent = isFourPlayers ? '4 Players' : '3 Players';
+                document.getElementById('togglePlayersBtn').textContent = isFourPlayers ? '4P' : '3P';
                 scoreboard.classList.remove('three-players', 'four-players');
                 scoreboard.classList.add(isFourPlayers ? 'four-players' : 'three-players');
 
@@ -1685,7 +1744,22 @@
                 timeout = setTimeout(later, wait);
             };
         }
+        function toggleMoreActions() {
+            const extraActions = document.getElementById('extraActions');
+            const btn = document.getElementById('moreActionsBtn');
+            if (!extraActions || !btn) return;
+            extraActions.classList.toggle('is-open');
+            const isOpen = extraActions.classList.contains('is-open');
+            btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        }
 
+        function closeMoreActions() {
+            const extraActions = document.getElementById('extraActions');
+            const btn = document.getElementById('moreActionsBtn');
+            if (!extraActions || !btn) return;
+            extraActions.classList.remove('is-open');
+            btn.setAttribute('aria-expanded', 'false');
+        }
         function init() {
             document.getElementById('togglePlayersBtn').addEventListener('click', togglePlayersMode);
             document.getElementById('undoBtn').addEventListener('click', undoLastAction);
@@ -1693,7 +1767,16 @@
             document.querySelector('.reset').addEventListener('click', confirmReset);
             document.getElementById('exportChartBtn').addEventListener('click', exportChart);
             document.getElementById('liveBtn').addEventListener('click', toggleLiveMode);
-            window.addEventListener('resize', debounce(updateRoundOrder, 250));
+            const moreBtn = document.getElementById('moreActionsBtn');
+            if (moreBtn) {
+                moreBtn.addEventListener('click', toggleMoreActions);
+            }
+            document.addEventListener('click', (event) => {
+                const wrap = document.querySelector('.menu-wrap');
+                if (!wrap) return;
+                if (wrap.contains(event.target)) return;
+                closeMoreActions();
+            });window.addEventListener('resize', debounce(updateRoundOrder, 250));
 
             if (!loadGameState()) {
                 // If no saved state, initialize default 3 players
@@ -2114,3 +2197,6 @@
 </body>
 
 </html>
+
+
+
