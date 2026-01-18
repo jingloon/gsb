@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RACE BOARD</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+            margin: 0;
+            padding: 5.5rem 0 3.6rem;
+            text-align: center;
+        }
+
+        footer {
+            text-align: center;
+            font-size: 0.9rem;
+            color: #777;
+            padding: 1rem 0;
+            border-top: 1px solid #ddd;
+            margin-top: 1rem;
+        }
+
+        .top-menu {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3.5rem;
+            background: #0d1321;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 1rem;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            font-weight: bold;
+            font-size: 1.4rem;
+            user-select: none;
+        }
+
+        .branding {
+            user-select: none;
+            color: white;
+        }
+
+        .right-buttons {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .menu-wrap {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .extra-actions {
+            position: absolute;
+            top: calc(100% + 0.4rem);
+            right: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+            background: #0d1321;
+            padding: 0.5rem;
+            border-radius: 8px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+            transform-origin: top right;
+            transform: translateY(-6px) scale(0.98);
+            opacity: 0;
+            pointer-events: none;
+            transition: transform 140ms ease, opacity 140ms ease;
+        }
+
+        .extra-actions.is-open {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .more-btn {
+            background-color: #5f6b75;
+            font-weight: 700;
+        }
+
+        .live-btn {
+            background: #2b2f38;
+            border: 1px solid #ff6f6f;
+            border-radius: 999px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            height: 1.8rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            color: #ffdede;
+        }
+
+        .live-btn .live-dot {
+            width: 0.8rem;
+            height: 0.8rem;
+            background: #e04848;
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 0 0 rgba(224, 72, 72, 0.6);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+        }
+
+        .live-btn.live-on {
+            background: linear-gradient(120deg, #9b1c1c, #e04848);
+            border-color: #ff7676;
+            color: white;
+            animation: pulse-record 1.4s infinite;
+        }
+
+        .live-btn.live-on .live-dot {
+            background: #ffb3b3;
+            box-shadow: 0 0 0 0 rgba(255, 153, 153, 0.8);
+        }
+
+        @keyframes pulse-record {
+            0% { box-shadow: 0 0 0 0 rgba(224, 72, 72, 0.7); }
+            70% { box-shadow: 0 0 0 12px rgba(224, 72, 72, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(224, 72, 72, 0); }
+        }
+
+        .right-buttons button {
+            padding: 0.5rem 1rem;
+            font-size: 0.7rem;
+            border: none;
+            border-radius: 5px;
+            background-color: #8c9399;
+            color: white;
+            cursor: pointer;
+        }
+
+        .right-buttons .reset { background-color: #da3226; }
+        .right-buttons #undoBtn { background-color: #4a0071; }
+        .right-buttons #undoBtn:disabled { background: #555555; cursor: not-allowed; }
+
+        @media (min-width: 721px) {
+            .more-btn { display: none; }
+            .extra-actions {
+                position: static;
+                flex-direction: row;
+                background: transparent;
+                padding: 0;
+                box-shadow: none;
+                transform: none;
+                opacity: 1;
+                pointer-events: auto;
+            }
+        }
+
+        .scoring-rules {
+            position: absolute;
+            top: 3.5rem;
+            left: 0;
+            right: 0;
+            background: #d8d8d8;
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            padding: 0.7rem 1rem;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            z-index: 999;
+            user-select: none;
+            font-weight: bold;
+            font-size: 1rem;
+        }
+
+        .scoring-rules div { display: flex; align-items: center; gap: 0.3rem; }
+        .scoring-rules input {
+            width: 50px;
+            text-align: center;
+            padding: 0.2rem 0.3rem;
+            font-size: 1rem;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+
+        .adjust-btn {
+            padding: 0.2rem 0.6rem;
+            font-size: 1rem;
+            background: #8c9399;
+            color: white;
+            border-radius: 4px;
+            margin: 0 0.3rem;
+        }
+
+        .bottom-fixed-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+            box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        #lastUpdate {
+            background: #d8d8d8;
+            color: black;
+            font-size: 1rem;
+            padding: 0.4rem 1rem;
+            user-select: none;
+            text-align: center;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: pointer;
+        }
+
+        .scoreboard {
+            margin-top: 3.5rem;
+            margin-bottom: 3.6rem;
+            display: grid;
+            gap: 1rem;
+            width: 100%;
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
+            padding: 0 1rem;
+            box-sizing: border-box;
+        }
+
+        .scoreboard { grid-template-columns: repeat(2, 1fr); grid-auto-rows: minmax(150px, auto); }
+
+        .player-card {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+        }
+
+        .player-card.winner { border: 3px solid #FFD700; background: #fffdf0; }
+
+        .player-card .action-buttons {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .player-card .action-buttons button {
+            min-width: 60px;
+            padding: 0.6rem 0.8rem;
+            font-size: 1.1rem;
+            border-radius: 4px;
+            flex-grow: 0;
+            flex-shrink: 0;
+        }
+
+        .win-counter {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #4CAF50;
+            margin: 0.5rem 0;
+        }
+
+        .score {
+            font-size: 1rem;
+            color: #999;
+            margin-bottom: 0.5rem;
+        }
+
+        button { margin: 0.2rem; padding: 0.5rem 1rem; font-size: 1rem; border: none; border-radius: 4px; cursor: pointer; user-select: none; }
+        .win { background-color: #4CAF50; color: white; }
+        .win:disabled { background: #555555; color: #666; cursor: not-allowed; }
+        .foul { background-color: #da3226; color: white; }
+        .foul:disabled { background: #555555; color: #666; cursor: not-allowed; }
+
+        .name-label {
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            user-select: none;
+            min-width: 100px;
+            text-align: center;
+        }
+
+        .name-input {
+            font-size: 1.2rem;
+            padding: 0.2rem 0.5rem;
+            width: 100%;
+            box-sizing: border-box;
+            text-align: center;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+
+        /* Animations */
+        @keyframes fall {
+            0% { transform: translateY(-50px) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+        }
+        .leaf {
+            position: fixed; top: 0; pointer-events: none; user-select: none; font-size: 24px;
+            animation-name: fall; animation-timing-function: linear; animation-fill-mode: forwards; z-index: 9999;
+        }
+        .firework-piece {
+            position: absolute; font-size: 24px; pointer-events: none;
+            animation: explode 800ms ease-out forwards; opacity: 0; z-index: 9999;
+        }
+        @keyframes explode {
+            0% { transform: translate(0, 0) scale(1); opacity: 1; }
+            100% { transform: translate(var(--x), var(--y)) scale(0.5); opacity: 0; }
+        }
+
+        /* Modal Styles */
+        .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0, 0, 0, 0.5); }
+        .modal-content { background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 600px; border-radius: 8px; text-align: left; }
+        .close-button { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
+        .modal-footer { padding-top: 1rem; display: flex; justify-content: flex-end; gap: 0.5rem; }
+        .modal-footer button { padding: 0.6rem 1.2rem; font-size: 1rem; border-radius: 5px; border: none; color: white; }
+        .modal-confirm-btn { background-color: #4d9dbd; }
+        .modal-cancel-btn { background-color: #828282; }
+    </style>
+</head>
+
+<body>
+    <div class="top-menu">
+        <div id="branding" class="branding">Race.</div>
+        <div class="right-buttons">
+            <button id="liveBtn" class="live-btn" title="Tap to start Live mode"><span class="live-dot"></span><span>Live</span></button>
+            
+            <div class="menu-wrap">
+                <button id="moreActionsBtn" class="more-btn" aria-expanded="false" aria-controls="extraActions">☰</button>
+                <div id="extraActions" class="extra-actions">
+                    <button id="undoBtn">Undo</button>
+                    <button class="reset" onclick="confirmReset()">Reset</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="scoring-rules">
+        <div><button class="adjust-btn" onclick="adjustPlayerCount(-1)">-</button><span id="playerCountDisplay">3</span>P<button class="adjust-btn" onclick="adjustPlayerCount(1)">+</button></div>
+       <div>Race: <input type="number" id="targetWins" value="5" /></div>
+        <div>$/P: <input type="number" id="payoutPoints" value="10" /></div>
+    </div>
+
+    <div class="scoreboard three-players" id="scoreboard">
+        <!-- Player cards inserted here -->
+    </div>
+
+    <div class="bottom-fixed-container">
+        <div id="lastUpdate"></div>
+    </div>
+
+    <div id="gameOverModal" class="modal">
+        <div class="modal-content" style="text-align: center;">
+            <span class="close-button">&times;</span>
+            <h2 style="color: #4CAF50;">🏆 Game Over! 🏆</h2>
+            <h3 id="winnerNameDisplay" style="font-size: 1.5rem; margin: 1rem 0;"></h3>
+            <p id="winningsDisplay" style="font-size: 1.2rem; color: #555;"></p>
+            <div class="modal-footer" style="justify-content: center; margin-top: 1.5rem;">
+                <button class="modal-confirm-btn" onclick="startNewGame()">New Game</button>
+                <button class="modal-cancel-btn" onclick="document.getElementById('gameOverModal').style.display='none'">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="gameLogModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <div id="gameLogContent"></div>
+            <div class="modal-footer" id="gameLogFooter"></div>
+        </div>
+    </div>
+
+    <div id="liveModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h3>Live Mode</h3>
+            <p>🔴 Scores will be updated live to the database.</p>
+            <p><strong>Join Code:</strong> <span id="liveJoinCode">0000</span></p>
+            <p><strong>Game ID:</strong> <span id="liveGameId">#6969</span></p>
+        </div>
+    </div>
+
+    <script>
+        // --- FIREBASE SETUP ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyC_jSYoQLlsYvyMkE4fZ4bHFz2fkE70shk",
+            authDomain: "guard-scoreboard.firebaseapp.com",
+            projectId: "guard-scoreboard",
+            storageBucket: "guard-scoreboard.firebasestorage.app",
+            messagingSenderId: "491028228431",
+            appId: "1:491028228431:web:4c92700d264f5b1aae3d3a",
+            measurementId: "G-5Z28C6N29L"
+        };
+
+        let db = null;
+        let firestoreDb = null;
+        let auth = null;
+        try {
+            firebase.initializeApp(firebaseConfig);
+            if (firebaseConfig.databaseURL) db = firebase.database();
+            if (firebase.firestore) firestoreDb = firebase.firestore();
+            if (firebase.auth) auth = firebase.auth();
+        } catch (e) { console.error("Error initializing Firebase:", e); }
+
+        function generateSessionId() {
+            const now = new Date();
+            const pad = (num) => num.toString().padStart(2, '0');
+            const day = pad(now.getDate());
+            const month = pad(now.getMonth() + 1);
+            const year = now.getFullYear().toString().slice(-2);
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let suffix = '';
+            for (let i = 0; i < 3; i++) suffix += chars.charAt(Math.floor(Math.random() * chars.length));
+            return `#JLR${day}${month}${year}${suffix}`;
+        }
+
+        function generateJoinCode() { return `JLR${Math.floor(1000 + Math.random() * 9000)}`; }
+        function normalizeJoinCode(value) { return /^JLR\d{4}$/.test(String(value || '').trim()) ? value : generateJoinCode(); }
+
+        const liveShare = {
+            enabled: false,
+            docId: localStorage.getItem('guardBoardRingLiveDocId') || null,
+            ref: null,
+            lastWrittenHash: '',
+            clientId: localStorage.getItem('guard.clientId') || `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+            joinCode: normalizeJoinCode(localStorage.getItem('guardBoardRingJoinCode'))
+        };
+
+        if (auth) {
+            auth.signInAnonymously().catch((e) => console.warn('Anonymous auth failed:', e));
+            auth.onAuthStateChanged((user) => { if (user) liveShare.clientId = user.uid; });
+        }
+
+        // --- GAME STATE ---
+        let scores = {};
+        let wins = {};
+        let order = [1, 2, 3];
+        let isLiveMode = false;
+        let liveGameId = generateSessionId();
+        let playerCount = 3;
+        const urlParams = new URLSearchParams(window.location.search);
+        const gameId = urlParams.get('game') || 'default';
+
+        // Logs
+        let historyLog = [];
+        let scoreLog = [];
+        let winsLog = [];
+
+        function createPlayerCard(player) {
+            const card = document.createElement('div');
+            card.classList.add('player-card');
+            card.id = `playerCard${player}`;
+
+            card.innerHTML = `
+                <div class="name-label" id="nameLabel${player}">Player ${player}</div>
+                <input class="name-input" id="nameInput${player}" style="display:none" />
+                <div class="win-counter" id="wins${player}">0</div>
+                <div class="score" id="score${player}">Pts: 0</div>
+                <div class="action-buttons">
+                    <button class="win" onclick="modifyWins(${player}, 1)">+ Win</button> 
+                    <button class="foul" onclick="modifyWins(${player}, -1)">- Win</button>
+                </div>
+            `;
+
+            document.getElementById("scoreboard").appendChild(card);
+
+            if (scores[player] === undefined) scores[player] = 0;
+            if (wins[player] === undefined) wins[player] = 0;
+
+            const nameLabel = document.getElementById(`nameLabel${player}`);
+            const nameInput = document.getElementById(`nameInput${player}`);
+
+            nameLabel.addEventListener('click', () => {
+                nameLabel.style.display = 'none';
+                nameInput.style.display = 'block';
+                nameInput.value = nameLabel.textContent;
+                nameInput.focus();
+                nameInput.select();
+            });
+
+            nameInput.addEventListener('blur', () => {
+                let val = nameInput.value.trim();
+                if (val === '') val = `P${player}`;
+                nameLabel.textContent = val;
+                nameLabel.style.display = 'block';
+                nameInput.style.display = 'none';
+                saveGameState();
+            });
+
+            nameInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') nameInput.blur();
+            });
+        }
+
+        function removePlayerCard(player) {
+            const card = document.getElementById(`playerCard${player}`);
+            if (card) card.remove();
+            delete scores[player];
+            delete wins[player];
+        }
+
+        function adjustPlayerCount(delta) {
+            const newCount = playerCount + delta;
+            if (newCount < 2 || newCount > 6) return;
+            
+            const proceed = () => {
+                playerCount = newCount;
+                resetScores();
+            };
+
+            if (historyLog.length > 0 || Object.values(wins).some(w => w > 0)) {
+                showConfirmation(`Changing player count will reset the game. Continue?`, proceed);
+            } else {
+                proceed();
+            }
+        }
+
+        function modifyWins(player, delta) {
+            const target = parseInt(document.getElementById('targetWins').value) || 5;
+            const payout = parseInt(document.getElementById('payoutPoints').value) || 10;
+            const playerName = document.getElementById(`nameLabel${player}`).textContent;
+
+            if (delta < 0 && wins[player] <= 0) return;
+
+            wins[player] += delta;
+            
+            let message = `${playerName} ${delta > 0 ? 'won a rack' : 'removed a win'} (Wins: ${wins[player]}/${target}).`;
+            let gameOver = false;
+
+            // Check Win Condition
+            if (wins[player] >= target && delta > 0) {
+                const players = [];
+                for (let i = 1; i <= playerCount; i++) players.push(i);
+                const others = players.filter(p => p !== player);
+                
+                let totalWinnings = 0;
+                others.forEach(p => {
+                    scores[p] -= payout;
+                    totalWinnings += payout;
+                });
+                scores[player] += totalWinnings;
+                
+                message = `🏆 ${playerName} reached ${target} wins! Game Over. Collected ${payout} from everyone.`;
+                gameOver = true;
+                showGameOverModal(playerName, totalWinnings);
+            }
+
+            logState(message);
+            updateAllScores();
+            saveGameState();
+
+            if (gameOver) {
+                launchFireworksAtElement(document.getElementById(`playerCard${player}`));
+                rainLeaves();
+            }
+        }
+
+        function logState(message) {
+            historyLog.push({ text: message, time: new Date() });
+            scoreLog.push(JSON.parse(JSON.stringify(scores)));
+            winsLog.push(JSON.parse(JSON.stringify(wins)));
+            document.getElementById('undoBtn').disabled = false;
+            updateLastUpdate(historyLog[historyLog.length - 1]);
+        }
+
+        function updateAllScores() {
+            const target = parseInt(document.getElementById('targetWins').value) || 5;
+            let isGameOver = false;
+            for (let i in wins) {
+                if (wins[i] >= target) isGameOver = true;
+            }
+
+            for (let i in scores) {
+                const winElem = document.getElementById(`wins${i}`);
+                if (winElem) winElem.textContent = `${wins[i]}`;
+                
+                const scoreElem = document.getElementById(`score${i}`);
+                if (scoreElem) scoreElem.textContent = `Pts: ${scores[i]}`;
+
+                const card = document.getElementById(`playerCard${i}`);
+                if (card) {
+                    if (wins[i] >= target) card.classList.add('winner');
+                    else card.classList.remove('winner');
+                    
+                    const buttons = card.querySelectorAll('button');
+                    buttons.forEach(btn => btn.disabled = isGameOver);
+                }
+            }
+        }
+
+        function undoLastAction() {
+            if (historyLog.length <= 1) {
+                alert("Nothing to undo.");
+                return;
+            }
+
+            const lastActionMessage = historyLog[historyLog.length - 1].text;
+            showConfirmation(`Undo: "${lastActionMessage}"?`, () => {
+                historyLog.pop();
+                scoreLog.pop();
+                winsLog.pop();
+
+                scores = JSON.parse(JSON.stringify(scoreLog[scoreLog.length - 1]));
+                wins = JSON.parse(JSON.stringify(winsLog[winsLog.length - 1]));
+
+                updateAllScores();
+                updateLastUpdate(historyLog[historyLog.length - 1]);
+                if (historyLog.length <= 1) document.getElementById('undoBtn').disabled = true;
+                saveGameState();
+            });
+        }
+
+        async function startNewGame() {
+            // 1. Flush the final winning state to the current live session before closing it
+            if (isLiveMode && firestoreDb && liveShare.docId) {
+                try {
+                    const payload = buildLivePayload();
+                    payload.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+                    await firestoreDb.collection('guard').doc(liveShare.docId).set(payload, { merge: true });
+                } catch (e) { console.error("Error saving final state:", e); }
+            }
+            
+            // 2. Reset the game (generates new IDs, starts new session)
+            await resetScores();
+            document.getElementById('gameOverModal').style.display = 'none';
+        }
+
+        async function resetScores() {
+            const message = 'Game Reset';
+            const target = parseInt(document.getElementById('targetWins').value) || 5;
+            const hasWinner = Object.values(wins).some(w => w >= target);
+            
+            // End current live session if active AND someone has won
+            if (hasWinner && isLiveMode && firestoreDb && liveShare.docId) {
+                try {
+                    await firestoreDb.collection('guard').doc(liveShare.docId).set({ status: 'ended' }, { merge: true });
+                } catch (e) { console.error(e); }
+                liveShare.docId = null;
+                localStorage.removeItem('guardBoardRingLiveDocId');
+            }
+
+            historyLog = [];
+            scoreLog = [];
+            winsLog = [];
+            
+            for (let i in scores) scores[i] = 0;
+            for (let i in wins) wins[i] = 0;
+
+            // Generate new session IDs ONLY if someone has won
+            if (hasWinner) {
+                liveGameId = generateSessionId();
+                liveShare.joinCode = generateJoinCode();
+                localStorage.setItem('guardBoardRingJoinCode', liveShare.joinCode);
+            }
+
+            logState(message);
+            updateAllScores();
+            document.getElementById('undoBtn').disabled = true;
+            
+            // Rebuild board
+            const scoreboard = document.getElementById("scoreboard");
+            scoreboard.innerHTML = '';
+            for (let i = 1; i <= playerCount; i++) createPlayerCard(i);
+            document.getElementById('playerCountDisplay').textContent = playerCount;
+            
+            // If live mode was on and we need a new session (winner found)
+            if (hasWinner && isLiveMode && firestoreDb) {
+                try {
+                    const payload = buildLivePayload();
+                    payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                    const ref = await firestoreDb.collection('guard').add(payload);
+                    liveShare.docId = ref.id;
+                    localStorage.setItem('guardBoardRingLiveDocId', liveShare.docId);
+                    
+                    document.getElementById('liveGameId').textContent = liveGameId;
+                    document.getElementById('liveJoinCode').textContent = liveShare.joinCode;
+                } catch (e) {
+                    console.error("Error starting new live share:", e);
+                }
+            }
+
+            saveGameState();
+        }
+
+        function saveGameState() {
+            const gameState = {
+                playerNames: {},
+                scores: scores,
+                wins: wins,
+                playerCount: playerCount,
+                historyLog: historyLog,
+                scoreLog: scoreLog,
+                winsLog: winsLog,
+                targetWins: document.getElementById('targetWins').value,
+                payoutPoints: document.getElementById('payoutPoints').value,
+                isLiveMode: isLiveMode,
+                liveGameId: liveGameId,
+                liveDocId: liveShare.docId,
+                liveJoinCode: liveShare.joinCode
+            };
+            for (let i = 1; i <= playerCount; i++) {
+                const nameLabel = document.getElementById(`nameLabel${i}`);
+                if (nameLabel) gameState.playerNames[i] = nameLabel.textContent;
+            }
+            localStorage.setItem('guardBoardRingState', JSON.stringify(gameState));
+            sendToFirebase(gameState);
+            scheduleLiveShareUpdate();
+        }
+
+        function loadGameState() {
+            const savedState = localStorage.getItem('guardBoardRingState');
+            if (savedState) {
+                const gameState = JSON.parse(savedState);
+                scores = gameState.scores || {};
+                wins = gameState.wins || {};
+                if (gameState.playerCount) {
+                    playerCount = gameState.playerCount;
+                } else {
+                    playerCount = (gameState.isFourPlayers) ? 4 : 3;
+                }
+                historyLog = gameState.historyLog || [];
+                scoreLog = gameState.scoreLog || [];
+                winsLog = gameState.winsLog || [];
+                
+                if (gameState.targetWins) document.getElementById('targetWins').value = gameState.targetWins;
+                if (gameState.payoutPoints) document.getElementById('payoutPoints').value = gameState.payoutPoints;
+
+                isLiveMode = false;
+                liveGameId = gameState.liveGameId || generateSessionId();
+                liveShare.docId = gameState.liveDocId || liveShare.docId;
+                liveShare.joinCode = normalizeJoinCode(gameState.liveJoinCode || liveShare.joinCode);
+
+                const scoreboard = document.getElementById("scoreboard");
+                scoreboard.innerHTML = '';
+                for (let i = 1; i <= playerCount; i++) createPlayerCard(i);
+                document.getElementById('playerCountDisplay').textContent = playerCount;
+
+                if (gameState.playerNames) {
+                    for (let i in gameState.playerNames) {
+                        const nameLabel = document.getElementById(`nameLabel${i}`);
+                        if (nameLabel) nameLabel.textContent = gameState.playerNames[i];
+                    }
+                }
+
+                updateAllScores();
+                if (historyLog.length > 0) updateLastUpdate(historyLog[historyLog.length - 1]);
+                document.getElementById('undoBtn').disabled = historyLog.length <= 1;
+                return true;
+            }
+            return false;
+        }
+
+        // --- UTILS & UI ---
+        function updateLastUpdate(historyEntry) {
+            const timeString = new Date(historyEntry.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            const lastUpdateElem = document.getElementById('lastUpdate');
+            lastUpdateElem.textContent = `📝 Last Update (${timeString}): ${historyEntry.text}`;
+        }
+
+        function showConfirmation(message, onConfirm) {
+            const modal = document.getElementById('gameLogModal');
+            const contentEl = document.getElementById('gameLogContent');
+            const footerEl = document.getElementById('gameLogFooter');
+            contentEl.innerHTML = `<p>${message}</p>`;
+            footerEl.innerHTML = `<button class="modal-confirm-btn">Confirm</button><button class="modal-cancel-btn">Cancel</button>`;
+            modal.style.display = 'block';
+            footerEl.querySelector('.modal-confirm-btn').onclick = () => { onConfirm(); modal.style.display = 'none'; };
+            footerEl.querySelector('.modal-cancel-btn').onclick = () => modal.style.display = 'none';
+            modal.querySelector('.close-button').onclick = () => modal.style.display = 'none';
+        }
+
+        function showGameLog() {
+            const modal = document.getElementById('gameLogModal');
+            const contentEl = document.getElementById('gameLogContent');
+            const footerEl = document.getElementById('gameLogFooter');
+            footerEl.innerHTML = '';
+            
+            let content = '<h3>Action History</h3><ul>';
+            historyLog.forEach(entry => {
+                const time = new Date(entry.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                content += `<li>(${time}) ${entry.text}</li>`;
+            });
+            content += '</ul>';
+            contentEl.innerHTML = content;
+            modal.style.display = 'block';
+            modal.querySelector('.close-button').onclick = () => modal.style.display = 'none';
+        }
+
+        function showGameOverModal(winnerName, winnings) {
+            const modal = document.getElementById('gameOverModal');
+            document.getElementById('winnerNameDisplay').textContent = `${winnerName} Wins!`;
+            document.getElementById('winningsDisplay').textContent = `Collected ${winnings} pts total.`;
+            modal.style.display = 'block';
+            
+            modal.querySelector('.close-button').onclick = () => modal.style.display = 'none';
+        }
+
+        function confirmReset() { showConfirmation("Reset game? Cannot be undone.", resetScores); }
+
+        function toggleMoreActions() {
+            document.getElementById('extraActions').classList.toggle('is-open');
+        }
+        document.getElementById('moreActionsBtn').addEventListener('click', toggleMoreActions);
+        document.addEventListener('click', (e) => {
+            if (!document.querySelector('.menu-wrap').contains(e.target)) document.getElementById('extraActions').classList.remove('is-open');
+        });
+
+        // --- LIVE SHARE & FIREBASE ---
+        function sendToFirebase(gameState) {
+            if (!db) return;
+            const dbPath = 'guard_games/' + gameId; 
+            db.ref(dbPath).set({
+                scores: gameState.scores,
+                wins: gameState.wins,
+                actionStats: { win: gameState.wins, foul: {}, golden: {}, bc: {} },
+                playerNames: gameState.playerNames,
+                lastUpdate: new Date().toISOString()
+            }).catch(err => console.error("Firebase update failed:", err));
+        }
+
+        function buildLivePayload() {
+            const players = {};
+            for (let i = 1; i <= playerCount; i++) {
+                const label = document.getElementById(`nameLabel${i}`);
+                players[i] = label ? label.textContent : `Player ${i}`;
+            }
+            return {
+                title: 'Race',
+                players,
+                playerCount,
+                scores: { ...scores },
+                wins: { ...wins },
+                actionStats: { win: { ...wins }, foul: {}, golden: {}, bc: {} },
+                historyLog: historyLog.map(e => ({ text: e.text, time: new Date(e.time).toISOString() })),
+                status: 'live',
+                joinCode: liveShare.joinCode
+            };
+        }
+
+        async function toggleLiveMode() {
+            isLiveMode = !isLiveMode;
+            const btn = document.getElementById('liveBtn');
+            btn.classList.toggle('live-on', isLiveMode);
+            
+            if (isLiveMode) {
+                document.getElementById('liveModal').style.display = 'block';
+                document.getElementById('liveGameId').textContent = liveGameId;
+                document.getElementById('liveJoinCode').textContent = liveShare.joinCode;
+                
+                if (firestoreDb) {
+                    try {
+                        const payload = buildLivePayload();
+                        payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                        if (liveShare.docId) {
+                            await firestoreDb.collection('guard').doc(liveShare.docId).set(payload, { merge: true });
+                        } else {
+                            const ref = await firestoreDb.collection('guard').add(payload);
+                            liveShare.docId = ref.id;
+                            localStorage.setItem('guardBoardRingLiveDocId', liveShare.docId);
+                        }
+                    } catch (e) {
+                        console.error("Error starting live share:", e);
+                    }
+                }
+            } else {
+                if (firestoreDb && liveShare.docId) {
+                    await firestoreDb.collection('guard').doc(liveShare.docId).set({ status: 'ended' }, { merge: true });
+                    liveShare.docId = null;
+                    localStorage.removeItem('guardBoardRingLiveDocId');
+                }
+            }
+            saveGameState();
+        }
+        document.getElementById('liveBtn').addEventListener('click', toggleLiveMode);
+        document.querySelector('#liveModal .close-button').onclick = () => document.getElementById('liveModal').style.display = 'none';
+        window.addEventListener('click', (event) => {
+            if (event.target == document.getElementById('liveModal')) document.getElementById('liveModal').style.display = 'none';
+            if (event.target == document.getElementById('gameOverModal')) document.getElementById('gameOverModal').style.display = 'none';
+        });
+
+        const scheduleLiveShareUpdate = (() => {
+            let timeout;
+            return function () {
+                if (!isLiveMode || !firestoreDb || !liveShare.docId) return;
+                clearTimeout(timeout);
+                timeout = setTimeout(() => {
+                    const payload = buildLivePayload();
+                    payload.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+                    firestoreDb.collection('guard').doc(liveShare.docId).set(payload, { merge: true });
+                }, 500);
+            };
+        })();
+
+        // --- ANIMATIONS ---
+        function createLeaf() {
+            const leaf = document.createElement('div');
+            leaf.classList.add('leaf');
+            const emojis = ['🤑', '🍀', '💰'];
+            leaf.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+            leaf.style.left = Math.random() * window.innerWidth + 'px';
+            leaf.style.fontSize = (16 + Math.random() * 24) + 'px';
+            leaf.style.animationDuration = (3 + Math.random() * 4) + 's';
+            document.body.appendChild(leaf);
+            leaf.addEventListener('animationend', () => leaf.remove());
+        }
+        function rainLeaves() {
+            let count = 0;
+            const interval = setInterval(() => { createLeaf(); count++; if (count >= 18) clearInterval(interval); }, 50);
+        }
+        function launchFireworksAtElement(elem) {
+            const rect = elem.getBoundingClientRect();
+            const originX = rect.left + rect.width / 2;
+            const originY = rect.top + rect.height / 2;
+            for (let i = 0; i < 50; i++) {
+                const span = document.createElement('span');
+                span.classList.add('firework-piece');
+                span.textContent = ['🤑', '🍀', '💰'][Math.floor(Math.random() * 3)];
+                document.body.appendChild(span);
+                const angle = Math.random() * 2 * Math.PI;
+                const radius = 100 + Math.random() * 50;
+                span.style.left = originX + 'px';
+                span.style.top = originY + 'px';
+                span.style.setProperty('--x', `${Math.cos(angle) * radius}px`);
+                span.style.setProperty('--y', `${Math.sin(angle) * radius}px`);
+                span.addEventListener('animationend', () => span.remove());
+            }
+        }
+
+        // --- INIT ---
+        document.getElementById('undoBtn').addEventListener('click', undoLastAction);
+        document.getElementById('lastUpdate').addEventListener('click', showGameLog);
+
+        if (!loadGameState()) {
+            [1, 2, 3].forEach(createPlayerCard);
+            logState("Game Started");
+            document.getElementById('undoBtn').disabled = true;
+        }
+    </script>
+    <footer>© @jingloon 2025 Race. <br /> <i>for the Degens. Made with Kopi Peng ☕. </i></footer>
+</body>
+</html>

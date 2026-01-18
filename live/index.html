@@ -822,16 +822,16 @@
             for (let i = 0; i < 3; i++) {
                 suffix += chars.charAt(Math.floor(Math.random() * chars.length));
             }
-            return `#JL${day}${month}${year}${suffix}`;
+            return `#JLG${day}${month}${year}${suffix}`;
         }
 
         function generateJoinCode() {
-            return `JL${Math.floor(1000 + Math.random() * 9000)}`;
+            return `JLG${Math.floor(1000 + Math.random() * 9000)}`;
         }
 
         function normalizeJoinCode(value) {
             const str = String(value || '').trim();
-            return /^JL\d{4}$/.test(str) ? str : generateJoinCode();
+            return /^JLG\d{4}$/.test(str) ? str : generateJoinCode();
         }
 
         const existingClientId = localStorage.getItem('guard.clientId') || localStorage.getItem('guardBoardClientId');
