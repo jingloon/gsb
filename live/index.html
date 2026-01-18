@@ -877,6 +877,12 @@
         let isFourPlayers = false;
         let headToHeadStats = {};
         let snookStats = {};
+        let actionStats = {
+            win: { 1: 0, 2: 0, 3: 0, 4: 0 },
+            foul: { 1: 0, 2: 0, 3: 0, 4: 0 },
+            golden: { 1: 0, 2: 0, 3: 0, 4: 0 },
+            bc: { 1: 0, 2: 0, 3: 0, 4: 0 }
+        };
 
         // Logs for Undo functionality
         let historyLog = [];
@@ -884,6 +890,7 @@
         let orderLog = [];
         let headToHeadLog = [];
         let snookLog = [];
+        let actionStatsLog = [];
         let scoreChart;
 
 
@@ -1087,6 +1094,7 @@
             orderLog.push([...order]);
             headToHeadLog.push(JSON.parse(JSON.stringify(headToHeadStats)));
             snookLog.push(JSON.parse(JSON.stringify(snookStats)));
+            actionStatsLog.push(JSON.parse(JSON.stringify(actionStats)));
             document.getElementById('undoBtn').disabled = false;
         }
 
@@ -1112,6 +1120,7 @@
                     headToHeadStats[player] = {};
                 }
                 headToHeadStats[player][prevPlayer] = (headToHeadStats[player][prevPlayer] || 0) + 1;
+                actionStats.win[player] = (actionStats.win[player] || 0) + 1;
 
                 updateOrderAfterWin(player);
             } else if (action === 'foul') {
@@ -1129,6 +1138,7 @@
                     snookStats[prevPlayer] = {};
                 }
                 snookStats[prevPlayer][player] = (snookStats[prevPlayer][player] || 0) + 1;
+                actionStats.foul[player] = (actionStats.foul[player] || 0) + 1;
 
             } else if (action === 'bc' || action === 'gb' || action === 'b&c' || action === 'dc') {
                 let points;
@@ -1139,12 +1149,17 @@
 
                 if (action === 'bc') {
                     points = getPointsFor('bc');
+                    actionStats.bc[player] = (actionStats.bc[player] || 0) + 1;
+                    actionStats.win[player] = (actionStats.win[player] || 0) + 1;
                     messageActionText = 'broke clear';
                 } else if (action === 'gb') {
                     points = getPointsFor('win');
+                    actionStats.golden[player] = (actionStats.golden[player] || 0) + 1;
+                    actionStats.win[player] = (actionStats.win[player] || 0) + 1;
                     messageActionText = 'golden break';
                 } else if (action === 'b&c') {
                     points = getPointsFor('win');
+                    actionStats.win[player] = (actionStats.win[player] || 0) + 1;
                     messageActionText = 'break-and-combi';
                 } else if (action === 'dc') {
                     points = getPointsFor('bc');
@@ -1157,6 +1172,7 @@
                         headToHeadStats[player] = {};
                     }
                     headToHeadStats[player][loser] = (headToHeadStats[player][loser] || 0) + 1;
+                    actionStats.win[player] = (actionStats.win[player] || 0) + 1;
                 }
 
 
@@ -1340,6 +1356,13 @@
             headToHeadLog = [];
             snookStats = {};
             snookLog = [];
+            actionStats = {
+                win: { 1: 0, 2: 0, 3: 0, 4: 0 },
+                foul: { 1: 0, 2: 0, 3: 0, 4: 0 },
+                golden: { 1: 0, 2: 0, 3: 0, 4: 0 },
+                bc: { 1: 0, 2: 0, 3: 0, 4: 0 }
+            };
+            actionStatsLog = [];
 
             for (let i in scores) scores[i] = 0;
 
@@ -1431,17 +1454,20 @@
                 orderLog.pop();
                 headToHeadLog.pop();
                 snookLog.pop();
+                actionStatsLog.pop();
 
                 const previousScores = scoreLog[scoreLog.length - 1];
                 const previousOrder = orderLog[orderLog.length - 1];
                 const previousMessage = historyLog[historyLog.length - 1];
                 const previousHeadToHead = headToHeadLog[headToHeadLog.length - 1];
                 const previousSnookStats = snookLog[snookLog.length - 1];
+                const previousActionStats = actionStatsLog[actionStatsLog.length - 1];
 
                 scores = JSON.parse(JSON.stringify(previousScores));
                 order = [...previousOrder];
                 headToHeadStats = JSON.parse(JSON.stringify(previousHeadToHead));
                 snookStats = JSON.parse(JSON.stringify(previousSnookStats));
+                actionStats = JSON.parse(JSON.stringify(previousActionStats));
 
                 updateAllScores(undoneScores);
                 updateSpecialActionButtons();
@@ -1472,6 +1498,8 @@
                 headToHeadLog: headToHeadLog,
                 snookStats: snookStats,
                 snookLog: snookLog,
+                actionStats: actionStats,
+                actionStatsLog: actionStatsLog,
                 isLiveMode: isLiveMode,
                 liveGameId: liveGameId,
                 liveDocId: liveShare.docId,
@@ -1505,6 +1533,13 @@
                 headToHeadLog = gameState.headToHeadLog || [];
                 snookStats = gameState.snookStats || {};
                 snookLog = gameState.snookLog || [];
+                actionStats = gameState.actionStats || {
+                    win: { 1: 0, 2: 0, 3: 0, 4: 0 },
+                    foul: { 1: 0, 2: 0, 3: 0, 4: 0 },
+                    golden: { 1: 0, 2: 0, 3: 0, 4: 0 },
+                    bc: { 1: 0, 2: 0, 3: 0, 4: 0 }
+                };
+                actionStatsLog = gameState.actionStatsLog || (historyLog.length > 0 ? new Array(historyLog.length).fill(null).map(() => JSON.parse(JSON.stringify(actionStats))) : []);
                 isLiveMode = false;
                 liveGameId = gameState.liveGameId || generateSessionId();
                 liveShare.docId = gameState.liveDocId || liveShare.docId;
@@ -1600,19 +1635,6 @@
             return players;
         }
 
-        function buildActionStats(players) {
-            const build = {};
-            Object.keys(players).forEach((id) => {
-                build[id] = 0;
-            });
-            return {
-                win: { ...build },
-                foul: { ...build },
-                golden: { ...build },
-                bc: { ...build }
-            };
-        }
-
         function buildLivePayload() {
             const players = getLivePlayersMap();
             const safeHistoryLog = historyLog.map((entry) => ({
@@ -1627,7 +1649,7 @@
                 players,
                 isFourPlayers,
                 scores: { ...scores },
-                actionStats: buildActionStats(players),
+                actionStats: { ...actionStats },
                 order: [...order],
                 historyLog: safeHistoryLog,
                 scoreLog: safeScoreLog,
@@ -2197,6 +2219,3 @@
 </body>
 
 </html>
-
-
-
